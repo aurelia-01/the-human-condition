@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Human Condition — An Archive from 2046</title>
+<link rel="preconnect" href="https://maniengine.com">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Long+Cang&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
@@ -66,6 +67,10 @@
   .veil.on{opacity:1;pointer-events:auto}
   .veil p{font-style:italic;font-size:clamp(18px,2.4vw,26px)}
   .veil .mono{color:#6d6350}
+  .veil.entering{gap:0;padding:clamp(1rem,5vw,3rem);background:#0b0d12;color:#e9e4d8;transition:opacity .65s ease}
+  .veil.entering .mono{font:normal .78rem Georgia,'Times New Roman',serif;color:#c5a46a;letter-spacing:.25em}
+  body .veil.entering #veilText{max-width:34ch;margin:.8em auto 0;font:normal clamp(1.35rem,4.5vw,2.6rem)/1.4 Georgia,'Times New Roman',serif}
+  @media(prefers-reduced-motion:reduce){.leaf,.veil,.veil.entering{transition:none}}
 
   .log{position:relative;z-index:5;text-align:center;padding:34px 20px 0}
   .log p{font-style:italic;color:#d8d1c2;font-size:17px;max-width:620px;margin:0 auto;transition:opacity .8s}
@@ -218,7 +223,7 @@
   <div class="traces" id="traces"></div>
 
   <div class="portal">
-    <a class="doorway" id="door" href="#" target="_blank" rel="noopener" aria-label="Open the door and enter the archive">
+    <a class="doorway" id="door" href="https://maniengine.com/t/614paRvZRsEu" aria-label="Open the door and enter the archive">
       <div class="plate mono"><span class="en">Twelve records · Enter</span><span class="zh">十二份记录 · 入口</span></div>
       <div class="light"></div>
       <div class="frame"></div>
@@ -258,7 +263,7 @@
   <button class="clear" id="clear"><span class="en">Clear my records</span><span class="zh">清空我的记录</span></button>
 </footer>
 
-<div class="veil" id="veil">
+<div class="veil" id="veil" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">
   <div class="mono" id="veilTop">Entering</div>
   <p id="veilText">The door opens.</p>
 </div>
@@ -319,7 +324,7 @@ const SLOTS = [
 let lang = 'en';
 const T = {
   enter:['Entering','正在进入'], open:['The door opens. (Preview — the museum link is not connected yet.)','门开了。（预览：博物馆链接尚未接入）'],
-  inside:['Entering','正在进入'], newtab:['The museum has opened in a new tab.','博物馆已在新标签页打开。'],
+  welcome:['The door opens. Welcome to the archive of 2046.','门开了。欢迎来到 2046 年的档案馆。'],
   back:['Returning','正在返回'], backTxt:['You are back at the entrance.','你回到了入口。'],
   notyet:['Not found yet. Step inside to find it.','还没找到，进去找找看。'],
   count:['Records found {n} / 12','已找回 {n} / 12'], no:['Record No. ','记录 No. ']
@@ -478,8 +483,8 @@ document.addEventListener('keydown', e => {
 
 let tt;
 function toast(msg, ms = 2800){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), ms); }
-function showVeil(top, text){ $('veilTop').textContent = top; $('veilText').textContent = text; veil.classList.add('on'); }
-function hideVeil(){ veil.classList.remove('on'); }
+function showVeil(top, text){ $('veilTop').textContent = top; $('veilText').textContent = text; veil.setAttribute('aria-hidden','false'); veil.classList.add('on'); }
+function hideVeil(){ veil.classList.remove('on','entering'); veil.setAttribute('aria-hidden','true'); }
 function closeDoor(){ door.classList.remove('open'); opening = false; }
 
 function returned(list){
@@ -490,14 +495,36 @@ function returned(list){
   setTimeout(() => { hideVeil(); closeDoor(); setTimeout(() => collect(list || []), 600); }, 1300);
 }
 
+let captionTimer, navigationTimer;
+function resetPassage(){
+  clearTimeout(captionTimer);
+  clearTimeout(navigationTimer);
+  hideVeil();
+  closeDoor();
+}
 function enter(e){
+  if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)) return;
   if (opening) { if (e) e.preventDefault(); return; }
   opening = true;
   door.classList.add('open');
   if (WORLD_URL) {
-    // the browser follows the link itself (new tab); we only play the door
-    showVeil(tr('inside'), tr('newtab'));
-    setTimeout(() => { hideVeil(); closeDoor(); }, 2600);
+    e?.preventDefault();
+    const destination = new URL(WORLD_URL);
+    destination.searchParams.set('entryLang', lang);
+    const warmup = document.createElement('link');
+    warmup.rel = 'prefetch';
+    warmup.as = 'document';
+    warmup.href = destination.href;
+    document.head.append(warmup);
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    captionTimer = setTimeout(() => {
+      veil.classList.add('entering');
+      showVeil('ARCHIVE Nº 2046', tr('welcome'));
+    }, reduceMotion ? 0 : 420);
+    // Keep the caption onscreen until the destination document takes over.
+    navigationTimer = setTimeout(() => {
+      window.location.assign(destination.href);
+    }, reduceMotion ? 850 : 1450);
     return;
   }
   if (e) e.preventDefault();
@@ -514,6 +541,11 @@ if (WORLD_URL) door.href = WORLD_URL;
 door.addEventListener('click', enter);
 door.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); door.click(); } });
 window.addEventListener('hashchange', readHash);
+window.addEventListener('pagehide', () => { clearTimeout(captionTimer); clearTimeout(navigationTimer); });
+window.addEventListener('pageshow', e => {
+  if (e.persisted) { resetPassage(); got = store.get(); renderTraces(); setLine(); readHash(); }
+});
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && opening && WORLD_URL) resetPassage(); });
 $('clear').addEventListener('click', () => { got = []; store.set(got); renderTraces(); $('line').textContent = 'The archive is quiet. Step inside, and the records you find will appear here.'; $('lineZh').textContent = '档案馆很安静。走进去，你找到的记录会出现在这里。'; });
 
 /* language + font */
@@ -521,6 +553,7 @@ function setLang(l){
   lang = l;
   document.body.classList.toggle('zh', l === 'zh');
   document.documentElement.lang = l === 'zh' ? 'zh-Hans' : 'en';
+  door.setAttribute('aria-label', l === 'zh' ? '推开门，进入档案馆' : 'Open the door and enter the archive');
   $('bEn').classList.toggle('on', l === 'en'); $('bZh').classList.toggle('on', l === 'zh');
   try { localStorage.setItem('thc_lang', l); } catch(e){}
   renderTraces();

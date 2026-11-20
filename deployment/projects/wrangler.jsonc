@@ -1,0 +1,44 @@
+{
+  "name": "ztilla-projects",
+  "main": "index.mjs",
+  "compatibility_date": "2026-11-20",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    {
+      "pattern": "ztilla.com/projects",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "ztilla.com/projects/*",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "www.ztilla.com/projects",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "www.ztilla.com/projects/*",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "m.ztilla.com/projects",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "m.ztilla.com/projects/*",
+      "zone_name": "ztilla.com"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ztilla-content",
+      "database_id": "edf3c2fa-0e37-4867-bc71-8b02dcf9bc89"
+    }
+  ]
+}
