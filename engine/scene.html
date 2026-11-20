@@ -659,6 +659,18 @@ camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 
 
 
 camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
 camera.userData = { ...camera.userData, ...{"__m3d_viewcam":1,"__m3d_id":"ajc0z36ap9de","__m3d_cam_nav":"wasd"}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
 { const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
 
@@ -2092,7 +2104,7 @@ const PendingExhibitsB = (() => {
   ];
   let time = 0, previous = null, count = 0, revealUntil = 0, toastUntil = 0, dwell = 0, dwelling = '', shown = '', maze, glow;
   const records = hud('div','top:12px;left:12px');
-  const leave = hud('button','top:12px;right:12px;pointer-events:auto;cursor:pointer');
+  const leave = hud('button','top:82px;left:12px;pointer-events:auto;cursor:pointer');
   const toast = hud('div','top:70px;left:12px');
   const guide = hud('div','bottom:15px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;text-align:center');
   const title = document.createElement('div'), chineseTitle = document.createElement('div'), english = document.createElement('div'), chinese = document.createElement('div');
@@ -2298,7 +2310,11 @@ const PendingExhibitsB = (() => {
     if(!controls.enabled)return;
     const ids=[...found].sort().map(ex=>String(Number(ex)).padStart(2,'0'));
     const url='https://human-condition-archive-jie.alert-lemur-5784.chatgpt.site/'+(ids.length?'#collected-'+ids.join('-'):'');
-    try{window.top.location.href=url;}catch{window.open(url,'_blank');}
+    {
+      const exitURL = 'https://ztilla.com/experiences/human-condition/' + (ids.length ? '#collected-' + ids.join('-') : '');
+      try { window.top.location.href = exitURL; }
+      catch { window.location.href = exitURL; }
+    }
   });
   events.addEventListener('interact',e=>{if(controls.enabled)record(e.detail?.ex);});
   canvas.addEventListener('pointerdown',e=>{
@@ -2985,12 +3001,12 @@ const GuidedMuseumTour = (() => {
   const hallFacing = camera.quaternion.clone();
   const titles = [
     'Entrance Hall · 入口大厅', 'Multiple Selves · 多重自我',
-    'Collective Memory · 集体记忆', 'Cultural Mutation Tree · 文化变异之树',
+    'Attention Auction · 注意力拍卖场', 'Cultural Mutation Tree · 文化变异之树',
     'The Choice Machine · 选择机器', 'The Weather of Emotion · 情绪天气',
-    'Identity · 身份', 'The Face That Keeps Forming · 不断成形的脸',
-    'The Algorithmic Filter · 算法过滤器', 'The Invisible Rules · 无形规则',
-    'Fragile Truth · 脆弱的真相', 'The Last Human Message · 最后的人类讯息',
-    'Floating Evidence · 漂浮的证据'
+    'Quantified Body · 被量化的身体', 'The Face That Keeps Forming · 不断成形的脸',
+    'The Algorithmic Filter · 算法过滤器', 'Collective Memory · 集体记忆',
+    'Invisible Rules · 隐形规则', 'The Last Human Message · 最后的人类讯息',
+    'Fragile Truth · 脆弱的真相'
   ];
   let step = -1, requested = -1, fadeStart = null, elapsed = 0, previous = null;
   let paused = false, hold = false, editing = window.__MANI_EDITOR_PREVIEW__ === true;
@@ -2999,7 +3015,7 @@ const GuidedMuseumTour = (() => {
   veil.style.cssText = 'position:fixed;inset:0;background:#141210;opacity:0;pointer-events:none;z-index:60';
   const panel = document.createElement('section');
   panel.setAttribute('aria-label', 'Guided museum tour · 博物馆导览');
-  panel.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);padding:10px 14px;background:#24201def;color:white;border-radius:8px;text-align:center;font:14px system-ui;z-index:61';
+  panel.style.cssText = 'position:fixed;right:12px;top:12px;width:max-content;max-width:calc(100vw - 24px);box-sizing:border-box;padding:10px 14px;background:#24201def;color:white;border-radius:8px;text-align:center;font:14px system-ui;z-index:61';
   const caption = document.createElement('div');
   caption.setAttribute('aria-live', 'polite');
   const hint = document.createElement('div');
@@ -3024,7 +3040,7 @@ const GuidedMuseumTour = (() => {
     toggle.textContent = paused ? 'Resume · 继续' : 'Pause · 暂停';
     const n = step < 0 ? requested : step;
     caption.textContent = active ? `${String(n).padStart(2, '0')}/12  ${titles[n]}` : '';
-    hint.textContent = paused ? 'Walk closer and use the exhibit controls. · 走近展品并使用互动控件。' : 'Pause to explore and interact. · 暂停导览即可自由探索与互动。';
+    hint.textContent = paused ? '操作已暂停导览，可自由探索。点击继续恢复。 / Paused for exploration; select Resume to continue.' : '轻触或移动即可暂停导览 / Interact or move to pause.';
   }
   function stop() {
     step = requested = -1; fadeStart = previous = null; elapsed = 0;
@@ -3099,7 +3115,7 @@ const GuidedMuseumTour = (() => {
   }
 
   panel.append(caption, hint);
-  const start = button('Start guided tour / 开始导览', () => {
+  const start = button('导览 / Guided tour', () => {
     if (!editing && controls.enabled) queue(0);
   });
   const toggle = button('Pause · 暂停', () => {
@@ -3115,6 +3131,22 @@ const GuidedMuseumTour = (() => {
     }
   });
   const next = button('Next · 下一站', () => queue(step + 1));
+  function pauseOnExternalInput(e) {
+    if (editing || !controls.enabled || paused || (step < 0 && requested < 0) || e.composedPath().includes(panel)) return;
+    if (e.type === 'keydown' && ['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'NumLock', 'ScrollLock', 'Fn', 'FnLock', 'OS'].includes(e.key)) return;
+    if (step < 0) step = 0;
+    requested = -1;
+    fadeStart = previous = null;
+    hold = false;
+    paused = true;
+    veil.style.opacity = '0';
+    syncWalk();
+    updatePanel();
+  }
+  window.addEventListener('pointerdown', pauseOnExternalInput, true);
+  window.addEventListener('wheel', pauseOnExternalInput, { capture: true, passive: true });
+  window.addEventListener('keydown', pauseOnExternalInput, true);
+  window.addEventListener('click', pauseOnExternalInput, true);
   const stopButton = button('Stop · 停止', stop);
   designPosition.copy(camera.position); designFacing.copy(camera.quaternion);
   document.body.append(veil, panel);

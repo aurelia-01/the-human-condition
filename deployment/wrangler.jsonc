@@ -1,0 +1,36 @@
+{
+  "name": "ztilla-art-human-condition",
+  "compatibility_date": "2026-11-19",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "ztilla.com/experiences/human-condition",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "ztilla.com/experiences/human-condition/*",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "www.ztilla.com/experiences/human-condition",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "www.ztilla.com/experiences/human-condition/*",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "m.ztilla.com/experiences/human-condition",
+      "zone_name": "ztilla.com"
+    },
+    {
+      "pattern": "m.ztilla.com/experiences/human-condition/*",
+      "zone_name": "ztilla.com"
+    }
+  ],
+  "assets": {
+    "directory": "./public",
+    "html_handling": "force-trailing-slash"
+  }
+}

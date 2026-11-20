@@ -12,3 +12,11 @@
 - `SHA256SUMS` 可用于核对所列作品文件的完整性。
 
 线上展馆由 MANI 提供。原始导出保留了 MANI 模型与运行库的线上地址，运行需要网络连接。
+
+## 发布与回程
+
+ZTILLA 首页的 **Projects · 人类处境** 和 Archive 中的作品共用一条目录记录。门页部署在 `/experiences/human-condition/`，推门会在新标签页打开 MANI 的公开世界。离馆时，展馆把已参观的记录编号带回门页。
+
+右上角的 **导览 / Guided tour** 从入口大厅开始，依次前往 12 件作品。点展品、拖动视角、滚轮或按移动键会暂停导览。点 **Resume · 继续** 可重新跟随。
+
+`deployment/catalog.sql` 是 ZTILLA 作品目录的记录。若要重新发布门页，先在仓库根目录运行 `node deployment/prepare.mjs`，再使用有 ZTILLA 区域权限的 Cloudflare 账户运行 `wrangler deploy --config deployment/wrangler.jsonc`。展馆由 MANI 编辑器独立发布到同一分享链接。
