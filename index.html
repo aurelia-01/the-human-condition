@@ -523,7 +523,7 @@ function enter(e){
     // Keep the caption onscreen until the destination document takes over.
     navigationTimer = setTimeout(() => {
       window.location.assign(destination.href);
-    }, reduceMotion ? 850 : 1450);
+    }, reduceMotion ? 2850 : 3450);
     return;
   }
   if (e) e.preventDefault();
