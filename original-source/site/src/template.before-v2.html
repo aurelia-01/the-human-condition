@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Human Condition — An Archive from 2046</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Long+Cang&family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0b0d12; --paper:#e9e4d8; --dim:#8b8c90; --glow:#f3d9a4; --line:#2a2f3a;
+    --zhfont:"Long Cang","Ma Shan Zheng","Kaiti SC","STKaiti",serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{background:var(--ink)}
+  body{
+    background:radial-gradient(ellipse 80% 70% at 50% 40%, #1a1f2b 0%, var(--ink) 62%) fixed;
+    color:var(--paper); font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    overflow-x:hidden; min-height:100vh;
+  }
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:var(--dim)}
+  .zh{font-family:var(--zhfont)}
+  header{position:relative;z-index:5;text-align:center;padding:56px 20px 0}
+  header .mono{margin-bottom:18px}
+  h1{font-weight:400;font-size:clamp(34px,6vw,72px);letter-spacing:.06em;line-height:1}
+  .sub{margin-top:14px;font-style:italic;color:#c9c3b5;font-size:clamp(15px,1.8vw,19px)}
+
+  /* stage */
+  .stage{position:relative;height:calc(100vh - 236px);min-height:520px;margin-top:10px}
+  .traces{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .trace{position:absolute;width:var(--w,150px);background:#efe9dc;padding:7px 7px 30px;border:0;cursor:pointer;color:#3a3a3a;
+    box-shadow:0 12px 30px rgba(0,0,0,.55);transform:rotate(var(--r));pointer-events:auto;transition:opacity 1.4s ease, filter 1.4s ease, box-shadow .4s;
+    animation:drift var(--dur,9s) ease-in-out var(--del,0s) infinite;
+    font:inherit;text-align:left}
+  .trace img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;filter:contrast(1.05) sepia(.12)}
+  .trace span{position:absolute;left:8px;right:8px;bottom:7px;font:10px/1.2 ui-monospace,Menlo,monospace;letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .trace.ghost{opacity:.2;filter:grayscale(1) blur(.4px);box-shadow:none}
+  .trace.ghost:hover{opacity:.32}
+  .trace:hover{animation-play-state:paused}
+  .trace.got:hover,.trace.got:focus-visible{box-shadow:0 18px 40px rgba(0,0,0,.7),0 0 28px rgba(243,217,164,.28)}
+  @keyframes drift{0%,100%{transform:translate(0,0) rotate(var(--r))}33%{transform:translate(var(--dx),calc(var(--dy) * -1)) rotate(calc(var(--r) + 1.5deg))}66%{transform:translate(calc(var(--dx) * -.6),var(--dy)) rotate(calc(var(--r) - 1deg))}}
+  .trace.new img{animation:arrive 1.6s ease}
+  @keyframes arrive{0%{opacity:.2;filter:grayscale(1)}40%{box-shadow:0 0 40px 10px rgba(243,217,164,.45)}100%{opacity:1}}
+
+  /* portal: column | door | column */
+  .portal{position:absolute;left:50%;top:53%;transform:translate(-50%,-50%);height:84%;min-height:430px;display:flex;align-items:flex-end;z-index:3}
+  .doorway{position:relative;display:block;height:100%;aspect-ratio:1/1.9;cursor:pointer;outline:none;perspective:1100px;flex:none;color:inherit;text-decoration:none}
+  .light{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%, #fff6dc 0%, var(--glow) 30%, #6b5530 75%, #20180c 100%);
+    box-shadow:0 0 0 rgba(243,217,164,0);transition:box-shadow 1.4s ease}
+  .frame{position:absolute;inset:-14px -14px 0 -14px;border:14px solid #1d222c;border-bottom:none;box-shadow:inset 0 0 0 1px #343a47, 0 0 0 1px #0a0c10}
+  .frame::after{content:"";position:absolute;inset:-9px -9px 0 -9px;border:1px solid #3a4150;border-bottom:none}
+  .leaf{position:absolute;top:0;bottom:0;width:50%;background-size:100% 100%;transition:transform 1.5s cubic-bezier(.6,.05,.25,1);backface-visibility:hidden}
+  .leaf.l{left:0;transform-origin:left center}
+  .leaf.r{right:0;transform-origin:right center}
+  .open .leaf.l{transform:rotateY(-104deg)}
+  .open .leaf.r{transform:rotateY(104deg)}
+  .open .light{box-shadow:0 0 140px 50px rgba(243,217,164,.38)}
+  .doorway:hover .light,.doorway:focus-visible .light{box-shadow:0 0 50px 6px rgba(243,217,164,.18)}
+  .plate{position:absolute;left:50%;top:-7%;transform:translateX(-50%);white-space:nowrap;text-align:center}
+  .hint{position:absolute;left:50%;bottom:-26px;transform:translateX(-50%);white-space:nowrap}
+  .open .hint{opacity:0}
+
+  .veil{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;
+    background:#f6ecd2;color:#2a2418;opacity:0;pointer-events:none;transition:opacity .9s ease;text-align:center;padding:20px}
+  .veil.on{opacity:1;pointer-events:auto}
+  .veil p{font-style:italic;font-size:clamp(18px,2.4vw,26px)}
+  .veil .mono{color:#6d6350}
+
+  .log{position:relative;z-index:5;text-align:center;padding:34px 20px 0}
+  .log p{font-style:italic;color:#d8d1c2;font-size:17px;max-width:620px;margin:0 auto;transition:opacity .8s}
+  .log .zh{font-style:normal;color:#a9a397;font-size:14px;margin-top:6px}
+  .log .mono{margin-top:12px}
+
+  section.about{position:relative;z-index:5;max-width:1300px;margin:64px auto 0;padding:34px 70px 10px;border-top:1px solid var(--line);
+    display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
+  .about h3{font-weight:400;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--glow);margin-bottom:10px;font-family:ui-monospace,Menlo,monospace}
+  .about p{color:#bdb7aa;font-size:15px;line-height:1.6}
+  .about .zh{font-size:14px;line-height:1.8;margin-top:8px;color:#9d978a}
+  footer{position:relative;z-index:5;text-align:center;padding:40px 20px 50px}
+  button.clear{background:none;border:1px solid var(--line);color:var(--dim);padding:6px 12px;margin-top:14px;cursor:pointer;font:11px ui-monospace,Menlo,monospace;letter-spacing:.1em}
+
+  /* detail card */
+  .modal{position:fixed;inset:0;z-index:30;background:rgba(5,6,9,.84);display:none;align-items:center;justify-content:center;padding:22px}
+  .modal.on{display:flex}
+  .card{position:relative;background:#efe9dc;color:#2a2418;max-width:860px;width:100%;max-height:92vh;overflow:auto;display:grid;grid-template-columns:1fr 1fr;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+  .card .img{padding:22px 0 22px 22px}
+  .card .img img{display:block;width:100%;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+  .card .txt{padding:30px 30px 26px 28px}
+  .card .no{font:11px ui-monospace,Menlo,monospace;letter-spacing:.16em;color:#7a6c52;text-transform:uppercase}
+  .card h2{font-weight:400;font-size:32px;line-height:1.1;margin:6px 0 2px}
+  .card h2 + .zh{font-size:18px;color:#5b5140}
+  .card .line{font-style:italic;font-size:18px;margin-top:12px;color:#433a2b;line-height:1.4}
+  .card .line + .zh{font-size:14.5px;color:#6a604d;margin-top:4px;line-height:1.7}
+  .card h4{font:11px ui-monospace,Menlo,monospace;letter-spacing:.16em;color:#7a6c52;margin:18px 0 8px;text-transform:uppercase}
+  .card ol{list-style:none;counter-reset:s}
+  .card li{counter-increment:s;position:relative;padding-left:30px;margin:8px 0;font-size:16px;line-height:1.35}
+  .card li .zh{display:block;font-size:13.5px;color:#6a604d;margin-top:2px;line-height:1.6}
+  .card li::before{content:counter(s);position:absolute;left:0;top:1px;width:20px;height:20px;border:1px solid #9b8a66;border-radius:50%;font:10px/19px ui-monospace,Menlo,monospace;text-align:center;color:#7a6c52}
+  .card .why{font-size:15.5px;line-height:1.5;color:#3c3324}
+  .card .why + .zh{font-size:13.5px;color:#6a604d;line-height:1.75;margin-top:4px}
+  .card .acts{display:flex;gap:10px;margin-top:18px}
+  .card .btn{font:11px ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase;padding:10px 14px;border:1px solid #2a2418;background:#2a2418;color:#efe9dc;text-decoration:none;cursor:pointer}
+  .card .btn.ghost{background:none;color:#2a2418}
+  .x{position:absolute;top:10px;right:14px;background:none;border:0;font-size:26px;color:#5a4d36;cursor:pointer}
+  .nav{grid-column:1/-1;display:flex;justify-content:space-between;padding:0 22px 18px}
+  .nav button{background:none;border:0;font:11px ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#7a6c52;cursor:pointer}
+  .toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,16px);opacity:0;z-index:40;background:#efe9dc;color:#2a2418;padding:12px 20px;transition:all .4s;font-size:15px;pointer-events:none;box-shadow:0 10px 30px rgba(0,0,0,.5);text-align:center;max-width:90vw}
+  .toast.on{opacity:1;transform:translate(-50%,0)}
+
+  /* top bar: language + font */
+  .topbar{position:fixed;top:16px;right:22px;z-index:36;text-align:right;font:12px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:var(--dim)}
+  .topbar button{background:none;border:0;color:var(--dim);font:inherit;letter-spacing:inherit;cursor:pointer;padding:2px 4px}
+  .topbar button.on{color:var(--glow)}
+  .topbar .bar{margin:0 6px;color:#4a505c}
+  .fonts{margin-top:10px;display:none}
+  body.zh .fonts{display:block}
+  .fonts span{color:#5d6370;margin-right:4px}
+  .fonts button{font-size:15px;letter-spacing:.04em;padding:2px 6px}
+  .fonts button.on{color:var(--glow);text-decoration:underline;text-underline-offset:5px}
+
+  /* language modes */
+  body.zh .en, body:not(.zh) .zh{display:none!important}
+  body.zh, body.zh .mono, body.zh .trace span, body.zh .card .no, body.zh .card h4, body.zh .about h3, body.zh .card .btn, body.zh .nav button, body.zh button.clear{font-family:var(--zhfont)}
+  body.zh h1{letter-spacing:.3em;font-family:var(--zhfont)}
+  body.zh .sub, body.zh .log p, body.zh .veil p, body.zh .card .line{font-style:normal}
+  body.zh .about p{font-size:20px;line-height:1.7}
+  body.zh h1{font-size:clamp(48px,7vw,88px);letter-spacing:.18em}
+  body.zh .sub{font-size:clamp(18px,1.9vw,23px)}
+  body.zh .mono{font-size:16px;letter-spacing:.2em;text-transform:none}
+  body.zh .about h3{font-size:22px;letter-spacing:.2em}
+  body.zh .log p{font-size:22px}
+  body.zh .trace span{font-size:15px;bottom:5px}
+  body.zh .card .no,body.zh .card h4{font-size:16px}
+  body.zh .card h2{font-size:42px}
+  body.zh .card .line{font-size:22px;line-height:1.5}
+  body.zh .card li{font-size:20px;line-height:1.5}
+  body.zh .card .why{font-size:19px;line-height:1.6}
+  body.zh .card .btn,body.zh .nav button,body.zh button.clear{font-size:16px;letter-spacing:.1em}
+  body.zh .veil p{font-size:30px}
+  body.zh .toast{font-size:20px}
+
+  /* half columns at the page edges */
+  .edgecol{position:fixed;top:0;bottom:0;width:220px;z-index:1;pointer-events:none;opacity:.32;display:flex;flex-direction:column}
+  .edgecol.l{left:-110px}.edgecol.r{right:-110px}
+  .edgecol svg{display:block;width:220px;height:auto;flex:none}
+  .edgecol .shaft{flex:1;margin:0 40px;border-left:1.4px solid #8a93a6;border-right:1.4px solid #8a93a6;
+    background:repeating-linear-gradient(90deg,transparent 0 16px,rgba(138,147,166,.5) 16px 17px,transparent 17px 19px,rgba(138,147,166,.25) 19px 20px)}
+
+  /* faint ornament behind the title */
+  header{isolation:isolate}
+  .orn{position:absolute;left:50%;top:6px;transform:translateX(-50%);width:min(660px,88vw);opacity:.13;z-index:-1;pointer-events:none}
+  .orn svg{display:block;width:100%;height:auto}
+
+  @media (max-width:1100px){
+    section.about{padding:22px 24px 0}
+  }
+  @media (max-width:980px){
+    section.about{grid-template-columns:1fr;gap:16px}
+    .stage{height:auto;min-height:0;margin-top:40px;display:flex;flex-direction:column}
+    .stage .portal{order:1}
+    .stage .traces{order:2}
+    .portal{position:relative;left:auto;top:auto;transform:none;margin:60px auto 70px;width:max-content;height:46vh;min-height:300px}
+    .traces{position:relative;inset:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:16px 16px;padding:0 38px}
+    .trace{padding:4px 4px 18px}
+    .trace span{font-size:8px;left:5px;right:5px;bottom:4px;letter-spacing:.02em}
+    body.zh .trace span{font-size:11px;bottom:3px}
+    .trace{position:relative;left:auto!important;top:auto!important;width:100%;animation:none}
+    .portal{height:70vh;min-height:420px}
+    .card{grid-template-columns:1fr}.card .img{padding:20px 20px 0}
+    .edgecol{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="edgecol l" aria-hidden="true">__CAP__<div class="shaft"></div></div>
+<div class="edgecol r" aria-hidden="true">__CAP__<div class="shaft"></div></div>
+
+<div class="topbar">
+  <div><button id="bEn" class="on">EN</button><span class="bar">|</span><button id="bZh">中文</button></div>
+
+</div>
+
+<header>
+
+  <div class="mono"><span class="en">Archive No. 2046 · Recovered from the year 2026</span><span class="zh">档案 No. 2046 · 寻回自 2026 年</span></div>
+  <h1><span class="en">THE HUMAN CONDITION</span><span class="zh">人类处境</span></h1>
+  <p class="sub"><span class="en">An archivist from 2046 invites you into the records of 2026.</span><span class="zh">2046 年的档案员，邀请你走进 2026 年留下的记录。</span></p>
+</header>
+
+<div class="stage">
+  <div class="traces" id="traces"></div>
+
+  <div class="portal">
+    <a class="doorway" id="door" href="#" target="_blank" rel="noopener" aria-label="Open the door and enter the archive">
+      <div class="plate mono"><span class="en">Twelve records · Enter</span><span class="zh">十二份记录 · 入口</span></div>
+      <div class="light"></div>
+      <div class="frame"></div>
+      <div class="leaf l" id="leafL"></div>
+      <div class="leaf r" id="leafR"></div>
+      <div class="hint mono"><span class="en">Open the door and step inside.</span><span class="zh">推开门，走进去。</span></div>
+    </a>
+  </div>
+</div>
+
+<div class="log">
+  <p class="en" id="line">The archive is quiet. Step inside, and the records you find will appear here.</p>
+  <p class="zh" id="lineZh">档案馆很安静。走进去，你找到的记录会出现在这里。</p>
+  <div class="mono" id="count">Records found 0 / 12</div>
+</div>
+
+<section class="about">
+  <div>
+    <h3><span class="en">The museum</span><span class="zh">博物馆</span></h3>
+    <p class="en">Six rooms stand in a ring around a central hall. Walk through them to find what people left behind when they first lived with machines.</p>
+    <p class="zh">六个展厅围成一圈，中间是大厅。走进去，找找第一代和机器一起生活的人留下了什么。</p>
+  </div>
+  <div>
+    <h3><span class="en">How to visit</span><span class="zh">怎么参观</span></h3>
+    <p class="en">Walk freely, or press Guided Tour. At each record, follow the guide at the bottom of the screen.</p>
+    <p class="zh">可以自己走，也可以按“导览”。到了每件作品前，跟着屏幕下方的提示去做。</p>
+  </div>
+  <div>
+    <h3><span class="en">Your records</span><span class="zh">你的记录</span></h3>
+    <p class="en">Every record you visit appears here as a photo. The faded ones are still waiting for you.</p>
+    <p class="zh">你走过的每件作品，都会在这里变成一张照片。半透明的，还在等你去找。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="mono"><span class="en">The Human Condition · by Jie · Cambridge EduX Hackathon 2026</span><span class="zh">人类处境 · Jie · 剑桥 EduX 黑客松 2026</span></div>
+  <button class="clear" id="clear"><span class="en">Clear my records</span><span class="zh">清空我的记录</span></button>
+</footer>
+
+<div class="veil" id="veil">
+  <div class="mono" id="veilTop">Entering</div>
+  <p id="veilText">The door opens.</p>
+</div>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true">
+  <div class="card">
+    <button class="x" id="mClose" aria-label="Close">×</button>
+    <div class="img"><img id="mImg" alt=""></div>
+    <div class="txt">
+      <div class="no" id="mNo"></div>
+      <h2 id="mTitle"></h2>
+      <p class="line" id="mLine"></p>
+      <h4 id="mStepsH"><span class="en">Then</span><span class="zh">然后</span></h4>
+      <ol id="mSteps"></ol>
+      <h4 id="mWhyH"><span class="en">Why</span><span class="zh">为什么这样做</span></h4>
+      <p class="why" id="mWhy"></p>
+      <div class="acts"><a class="btn ghost" id="mSave" download><span class="en">Save image</span><span class="zh">保存图片</span></a></div>
+    </div>
+    <div class="nav"><button id="mPrev"><span class="en">‹ Prev</span><span class="zh">‹ 上一件</span></button><button id="mNext"><span class="en">Next ›</span><span class="zh">下一件 ›</span></button></div>
+  </div>
+</div>
+
+
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ SETTINGS (edit here) ============
+   WORLD_URL: the published MANI Engine link of the 3D world.
+   Leave it empty ('') to preview: the door then plays a short simulated visit. */
+const WORLD_URL = 'https://maniengine.com/t/qmwj3ERXOMCl';
+/* ============================================== */
+
+const IMG = __IMGS__;
+
+const A = [
+ {n:'01',t:"The Multiple Selves",tz:"多重自我",l:"Choose an identity, and watch a new face grow from the same person.",lz:"选一个身份，看看同一个人身上会长出怎样的新面孔。",s:[["Look at where the faces overlap. Find the parts they still share.","看看这些面孔重叠的地方，找找它们之间还共有的部分。"]],w:'',wz:''},
+ {n:'02',t:"The Attention Archive",tz:"注意力档案",l:"This record is still being restored.",lz:"这份记录还在修复中。",s:[],w:'',wz:''},
+ {n:'03',t:"Cultural Recreation",tz:"文化再创造",l:"This record is still being restored.",lz:"这份记录还在修复中。",s:[],w:'',wz:''},
+ {n:'04',t:"The Choice Machine",tz:"选择机器",l:"This record is still being restored.",lz:"这份记录还在修复中。",s:[],w:'',wz:''},
+ {n:'05',t:"The Weather of Emotion",tz:"情绪的天气",l:"One message: “I’m fine.” Press A, B and C to see the day behind it, and watch the weather in the room.",lz:"一条消息：“我没事。”按 A、B、C，看看这句话背后是怎样的一天，再看看房间里的天气。",s:[["Look at the message again. It never changed. Notice how much of the feeling the record left out.","再看一眼那条消息，它一个字都没变。留意一下，这条记录漏掉了多少心情。"]],w:'',wz:''},
+ {n:'06',t:"The Quantified Body",tz:"被量化的身体",l:"Choose a type of data, and see how the body is broken into parts that can be measured.",lz:"选一种数据，看看身体是怎样被拆成一个个可以测量的部分的。",s:[["Read the data around the body. Find which parts of you were recorded, why they were read this way, and which parts became objective numbers.","读一读身体周围的数据，找找自己身体的哪些部分被记录了，为什么会被这样解读，又有哪些部分被当成了客观的数字。"]],w:'',wz:''},
+ {n:'07',t:"Human Relationships",tz:"人际关系",l:"This record is still being restored.",lz:"这份记录还在修复中。",s:[],w:'',wz:''},
+ {n:'08',t:"The Algorithmic Filter",tz:"算法过滤",l:"Choose the pattern you like most. Keep choosing it, and watch the room.",lz:"选一个你最喜欢的图案，然后一直选它，看看整个房间会怎样。",s:[["Look around. See which patterns are still here, and which ones you can no longer see.","环顾四周，看看还剩下哪些图案，又有哪些你已经看不到了。"]],w:'',wz:''},
+ {n:'09',t:"Collective Memory",tz:"集体记忆",l:"This record is still being restored.",lz:"这份记录还在修复中。",s:[],w:'',wz:''},
+ {n:'10',t:"The Invisible Rules",tz:"隐形规则",l:"This record is still being restored.",lz:"这份记录还在修复中。",s:[],w:'',wz:''},
+ {n:'11',t:"The Last Human Message",tz:"最后的人类信息",l:"Read what the person first wrote. Then open the AI-edited and AI-generated versions, and follow what happens to their decision.",lz:"先读这个人最初写下的话，再打开 AI 润色和 AI 生成的版本，跟着看看他的决定变成了什么。",s:[["Press COMPARE. Find the words where the meaning turned around.","按“对比”，找出意思被反过来的那几个词。"]],w:'',wz:''},
+ {n:'12',t:'The Fragile Truth',tz:'脆弱的真相',l:"Walk forward and see what it looked like at the very beginning.",lz:"往前走，看看它最开始的样子。",s:[["At the end, only the original record is left: two strangers sharing an umbrella. Nothing else happened.","最后只剩下原始记录：两个陌生人共撑一把伞，之后什么也没发生。"]],w:'',wz:''}
+];
+
+/* fixed slots around the portal: 6 left, 6 right (left%, top%, rotation) */
+/* x = px offset of the photo's left edge from the page centre */
+/* [x px from centre, top %, rotation, width px] — scattered around the door */
+const SLOTS = [
+  [-555,3,-6,142],[-385,0,4,128],[-530,36,3,152],[-360,43,-5,132],[-560,69,5,132],[-390,75,-3,146],
+  [205,4,5,144],[385,11,-4,128],[228,39,-3,134],[410,45,6,152],[200,71,4,132],[378,76,-5,140]
+];
+let lang = 'en';
+const T = {
+  enter:['Entering','正在进入'], open:['The door opens. (Preview — the museum link is not connected yet.)','门开了。（预览：博物馆链接尚未接入）'],
+  inside:['Entering','正在进入'], newtab:['The museum has opened in a new tab.','博物馆已在新标签页打开。'],
+  back:['Returning','正在返回'], backTxt:['You are back at the entrance.','你回到了入口。'],
+  notyet:['Not found yet. Step inside to find it.','还没找到，进去找找看。'],
+  count:['Records found {n} / 12','已找回 {n} / 12'], no:['Record No. ','记录 No. ']
+};
+const tr = (k, n) => T[k][lang === 'zh' ? 1 : 0].replace('{n}', n);
+
+const LINES = [
+  ['You brought some records back. Open them and look again.','你带回了几份记录，点开再看一看。'],
+  ['You brought some records back. Open them and look again.','你带回了几份记录，点开再看一看。'],
+  ['More records found. Look for what they have in common, then go back for the rest.','又找回了几份。找找它们之间相同的地方，再回去找剩下的。'],
+  ['All twelve records are here. Open them one by one.','十二份记录都在这里了，一份一份打开看看。']
+];
+
+const $ = id => document.getElementById(id);
+const door = $('door'), veil = $('veil');
+let away = false, opening = false, cur = 0;
+
+let mem = [];
+const store = {
+  get(){ try { return JSON.parse(localStorage.getItem('thc_got') || '[]'); } catch(e){ return mem; } },
+  set(v){ mem = v; try { localStorage.setItem('thc_got', JSON.stringify(v)); } catch(e){} }
+};
+let got = store.get();
+
+/* ornate door leaf */
+const leafSVG = flip => {
+  const s = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 300' preserveAspectRatio='none'>
+<defs>
+ <linearGradient id='w' x1='0' x2='1'><stop offset='0' stop-color='#1a1f28'/><stop offset='.5' stop-color='#2b313c'/><stop offset='1' stop-color='#1a1f28'/></linearGradient>
+ <g id='petal'><path d='M0 0 C3 -4 3 -10 0 -13 C-3 -10 -3 -4 0 0Z'/></g>
+ <g id='ros'><use href='#petal'/><use href='#petal' transform='rotate(45)'/><use href='#petal' transform='rotate(90)'/><use href='#petal' transform='rotate(135)'/><use href='#petal' transform='rotate(180)'/><use href='#petal' transform='rotate(225)'/><use href='#petal' transform='rotate(270)'/><use href='#petal' transform='rotate(315)'/><circle r='3.2'/><circle r='16' fill='none'/></g>
+ <g id='fan'><path d='M0 0 Q0 -10 10 -10 M0 0 Q0 -6 6 -6 M0 0 L8 -8' fill='none'/></g>
+ <g id='scroll'><path d='M0 0 C6 -8 16 -8 18 0 C19 6 12 8 10 4 C9 1 12 0 13 2' fill='none'/></g>
+</defs>
+<rect width='100' height='300' fill='url(#w)'/>
+<rect x='1.5' y='1.5' width='97' height='297' fill='none' stroke='#3e4553' stroke-width='1.5'/>
+<rect x='5' y='5' width='90' height='290' fill='none' stroke='#4b5363' stroke-width='.6'/>
+<g fill='none' stroke='#5c6578' stroke-width='.9'>
+ <rect x='11' y='13' width='78' height='100'/><rect x='15' y='17' width='70' height='92' stroke-width='.5'/><rect x='18' y='20' width='64' height='86' stroke='#6c7588' stroke-width='.4'/>
+ <path d='M50 26 C66 38 74 50 74 63 C74 76 66 88 50 100 C34 88 26 76 26 63 C26 50 34 38 50 26Z'/>
+ <path d='M50 34 C62 44 67 53 67 63 C67 73 62 82 50 92 C38 82 33 73 33 63 C33 53 38 44 50 34Z' stroke-width='.5'/>
+ <g transform='translate(18 20)' stroke='#6c7588' stroke-width='.6'><use href='#fan'/></g>
+ <g transform='translate(82 20) scale(-1 1)' stroke='#6c7588' stroke-width='.6'><use href='#fan'/></g>
+ <g transform='translate(18 106) scale(1 -1)' stroke='#6c7588' stroke-width='.6'><use href='#fan'/></g>
+ <g transform='translate(82 106) scale(-1 -1)' stroke='#6c7588' stroke-width='.6'><use href='#fan'/></g>
+ <rect x='11' y='121' width='78' height='26'/><rect x='14' y='124' width='72' height='20' stroke-width='.4'/>
+ <path d='M18 134 H82' stroke-width='.4'/>
+ <rect x='11' y='155' width='78' height='132'/><rect x='15' y='159' width='70' height='124' stroke-width='.5'/><rect x='18' y='162' width='64' height='118' stroke='#6c7588' stroke-width='.4'/>
+ <path d='M50 170 L74 221 L50 272 L26 221Z' stroke-width='.7'/>
+ <path d='M50 182 L67 221 L50 260 L33 221Z' stroke-width='.45'/>
+ <g transform='translate(22 176)' stroke='#6c7588' stroke-width='.6'><use href='#scroll'/></g>
+ <g transform='translate(78 176) scale(-1 1)' stroke='#6c7588' stroke-width='.6'><use href='#scroll'/></g>
+ <g transform='translate(22 266) scale(1 -1)' stroke='#6c7588' stroke-width='.6'><use href='#scroll'/></g>
+ <g transform='translate(78 266) scale(-1 -1)' stroke='#6c7588' stroke-width='.6'><use href='#scroll'/></g>
+</g>
+<g transform='translate(50 63)' fill='#3b4250' stroke='#8f7a4c' stroke-width='.55'><use href='#ros'/></g>
+<g transform='translate(50 221) scale(.85)' fill='#3b4250' stroke='#8f7a4c' stroke-width='.6'><use href='#ros'/></g>
+<g fill='#8f7a4c'>
+ ${[22,30,38,46,54,62,70,78].map(x=>`<circle cx='${x}' cy='134' r='1.2'/>`).join('')}
+ ${[13,113,155,287].map(y=>[11,89].map(x=>`<circle cx='${x}' cy='${y}' r='1.6'/>`).join('')).join('')}
+ ${[30,50,70,90,110,130,150,170,190,210,230,250,270].map(y=>`<circle cx='${flip?96:4}' cy='${y}' r='.9' fill='#6b5a3a'/>`).join('')}
+</g>
+<g fill='none' stroke='#6c7588' stroke-width='.35'>
+ <path d='M50 40 C58 47 62 55 62 63 C62 71 58 79 50 86 C42 79 38 71 38 63 C38 55 42 47 50 40Z'/>
+ ${[0,30,60,90,120,150].map(a=>`<path d='M50 63 L${(50+22*Math.cos(a*Math.PI/180)).toFixed(1)} ${(63+22*Math.sin(a*Math.PI/180)).toFixed(1)} M50 63 L${(50-22*Math.cos(a*Math.PI/180)).toFixed(1)} ${(63-22*Math.sin(a*Math.PI/180)).toFixed(1)}'/>`).join('')}
+ <path d='M50 194 L60 221 L50 248 L40 221Z'/>
+ <path d='M20 134 C24 129 28 139 32 134 C36 129 40 139 44 134 C48 129 52 139 56 134 C60 129 64 139 68 134 C72 129 76 139 80 134' stroke='#7a8396' stroke-width='.45'/>
+</g>
+<g fill='#4a5262' stroke='#8f7a4c' stroke-width='.35'>
+ ${[[18,20],[82,20],[18,106],[82,106],[18,162],[82,162],[18,280],[82,280]].map(([x,y])=>`<circle cx='${x}' cy='${y}' r='2.6'/><circle cx='${x}' cy='${y}' r='1' fill='#8f7a4c' stroke='none'/>`).join('')}
+</g>
+<g fill='#7a6a48'>
+ ${Array.from({length:16},(_,k)=>`<circle cx='${20+k*4}' cy='18.5' r='.45'/><circle cx='${20+k*4}' cy='107.5' r='.45'/><circle cx='${20+k*4}' cy='160.5' r='.45'/><circle cx='${20+k*4}' cy='281.5' r='.45'/>`).join('')}
+ ${Array.from({length:21},(_,k)=>`<circle cx='16.5' cy='${23+k*4}' r='.45'/><circle cx='83.5' cy='${23+k*4}' r='.45'/>`).join('')}
+ ${Array.from({length:29},(_,k)=>`<circle cx='16.5' cy='${165+k*4}' r='.45'/><circle cx='83.5' cy='${165+k*4}' r='.45'/>`).join('')}
+ <circle cx='50' cy='170' r='1.6'/><circle cx='50' cy='272' r='1.6'/><circle cx='26' cy='221' r='1.6'/><circle cx='74' cy='221' r='1.6'/>
+ <circle cx='50' cy='26' r='1.4'/><circle cx='50' cy='100' r='1.4'/>
+</g>
+<g transform='translate(${flip ? 9 : 91} 170)'>
+ <path d='M-4 -6 Q0 -10 4 -6 L4 8 Q0 12 -4 8Z' fill='#5e5034' stroke='#a88f5a' stroke-width='.6'/>
+ <circle cy='-1' r='1.5' fill='#14171d'/><path d='M-.8 0 L-1.4 5 L1.4 5 L.8 0Z' fill='#14171d'/>
+</g>
+<g transform='translate(${flip ? 9 : 91} 150)'>
+ <rect x='-2.6' y='-15' width='5.2' height='30' rx='2.6' fill='#7d6a42'/>
+ <circle r='5.5' fill='none' stroke='#b39a62' stroke-width='1.2'/><circle r='2' fill='#c9ad6e'/>
+</g>
+</svg>`;
+  return `url("data:image/svg+xml,${encodeURIComponent(s)}")`;
+};
+$('leafL').style.backgroundImage = leafSVG(false);
+$('leafR').style.backgroundImage = leafSVG(true);
+
+function renderTraces(fresh = []){
+  $('traces').innerHTML = A.map((a, i) => {
+    const has = got.includes(a.n), [x, y, r, w] = SLOTS[i];
+    const nm = lang === 'zh' ? a.tz : a.t;
+    return `<button class="trace ${has ? 'got' : 'ghost'}${fresh.includes(a.n) ? ' new' : ''}" style="left:calc(50% + ${x}px);top:calc(${y}% + ${Math.round((w * 0.75 + 37) / 5)}px);--r:${r}deg;--w:${w}px;--dur:${8 + (i * 1.7) % 5}s;--del:-${(i * 2.3) % 7}s;--dx:${(i % 2 ? 1 : -1) * (4 + i % 4)}px;--dy:${8 + (i * 3) % 7}px" data-i="${i}" aria-label="${a.n} ${nm}">
+      <img src="${IMG[a.n]}" alt=""><span>${has ? `No. ${a.n} · ${nm}` : `No. ${a.n} · ?`}</span></button>`;
+  }).join('');
+  document.querySelectorAll('.trace').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.i;
+    if (got.includes(A[i].n)) openCard(i);
+    else toast(tr('notyet'));
+  }));
+  $('count').textContent = tr('count', got.length);
+}
+
+function setLine(){
+  if (!got.length) return;
+  const k = got.length >= 12 ? 3 : (got.length >= 4 ? 2 : 0);
+  $('line').style.opacity = 0;
+  setTimeout(() => { $('line').textContent = LINES[k][0]; $('lineZh').textContent = LINES[k][1]; $('line').style.opacity = 1; }, 400);
+}
+
+function collect(list){
+  const fresh = list.filter(n => !got.includes(n));
+  if (!fresh.length) return;
+  got = got.concat(fresh); store.set(got);
+  renderTraces(fresh); setLine();
+}
+
+/* the 3D world can send visitors back with the archives they passed:
+   …/human-condition/#collected-01-02-05  */
+function readHash(){
+  const m = (location.hash || '').match(/^#collected((?:-\d\d)+)$/);
+  if (!m) return;
+  collect(m[1].split('-').filter(Boolean));
+  try { history.replaceState(null, '', location.pathname + location.search); } catch(e){}
+}
+
+function openCard(i){
+  cur = (i + A.length) % A.length;
+  const a = A[cur];
+  $('mImg').src = IMG[a.n]; $('mImg').alt = a.t;
+  const z = lang === 'zh';
+  $('mNo').textContent = tr('no') + a.n;
+  $('mTitle').textContent = z ? a.tz : a.t;
+  $('mLine').textContent = z ? a.lz : a.l;
+  $('mSteps').innerHTML = a.s.map(s => `<li>${z ? s[1] : s[0]}</li>`).join('');
+  $('mWhy').textContent = z ? a.wz : a.w;
+  $('mWhyH').style.display = a.w ? '' : 'none'; $('mWhy').style.display = a.w ? '' : 'none';
+  $('mStepsH').style.display = a.s.length ? '' : 'none'; $('mSteps').style.display = a.s.length ? '' : 'none';
+  $('mSave').href = IMG[a.n]; $('mSave').setAttribute('download', `human-condition-${a.n}.jpg`);
+  $('modal').classList.add('on'); $('mClose').focus();
+}
+function closeCard(){ $('modal').classList.remove('on'); }
+function step(d){ let i = cur; for (let k = 0; k < 12; k++){ i = (i + d + 12) % 12; if (got.includes(A[i].n)) return openCard(i); } }
+$('mClose').addEventListener('click', closeCard);
+$('mPrev').addEventListener('click', () => step(-1));
+$('mNext').addEventListener('click', () => step(1));
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeCard(); });
+document.addEventListener('keydown', e => {
+  if (!$('modal').classList.contains('on')) return;
+  if (e.key === 'Escape') closeCard(); if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1);
+});
+
+let tt;
+function toast(msg, ms = 2800){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), ms); }
+function showVeil(top, text){ $('veilTop').textContent = top; $('veilText').textContent = text; veil.classList.add('on'); }
+function hideVeil(){ veil.classList.remove('on'); }
+function closeDoor(){ door.classList.remove('open'); opening = false; }
+
+function returned(list){
+  if (!away) return;
+  away = false;
+  try { sessionStorage.removeItem('thc_away'); } catch(e){}
+  showVeil(tr('back'), tr('backTxt'));
+  setTimeout(() => { hideVeil(); closeDoor(); setTimeout(() => collect(list || []), 600); }, 1300);
+}
+
+function enter(e){
+  if (opening) { if (e) e.preventDefault(); return; }
+  opening = true;
+  door.classList.add('open');
+  if (WORLD_URL) {
+    // the browser follows the link itself (new tab); we only play the door
+    showVeil(tr('inside'), tr('newtab'));
+    setTimeout(() => { hideVeil(); closeDoor(); }, 2600);
+    return;
+  }
+  if (e) e.preventDefault();
+  setTimeout(() => {
+    away = true;
+    const left = A.map(a => a.n).filter(n => !got.includes(n));
+    const picks = left.sort(() => Math.random() - .5).slice(0, 4);
+    showVeil(tr('enter'), tr('open'));
+    setTimeout(() => returned(picks), 3000);
+  }, 1300);
+}
+
+if (WORLD_URL) door.href = WORLD_URL;
+door.addEventListener('click', enter);
+door.addEventListener('keydown', e => { if (e.key === ' ') { e.preventDefault(); door.click(); } });
+window.addEventListener('hashchange', readHash);
+$('clear').addEventListener('click', () => { got = []; store.set(got); renderTraces(); $('line').textContent = 'The archive is quiet. Step inside, and the records you find will appear here.'; $('lineZh').textContent = '档案馆很安静。走进去，你找到的记录会出现在这里。'; });
+
+/* language + font */
+function setLang(l){
+  lang = l;
+  document.body.classList.toggle('zh', l === 'zh');
+  document.documentElement.lang = l === 'zh' ? 'zh-Hans' : 'en';
+  $('bEn').classList.toggle('on', l === 'en'); $('bZh').classList.toggle('on', l === 'zh');
+  try { localStorage.setItem('thc_lang', l); } catch(e){}
+  renderTraces();
+  if ($('modal').classList.contains('on')) openCard(cur);
+}
+$('bEn').addEventListener('click', () => setLang('en'));
+$('bZh').addEventListener('click', () => setLang('zh'));
+try { lang = localStorage.getItem('thc_lang') || 'en'; } catch(e){}
+setLang(lang);
+
+renderTraces();
+if (got.length) { $('line').textContent = LINES[got.length >= 12 ? 3 : (got.length >= 4 ? 2 : 0)][0]; $('lineZh').textContent = LINES[got.length >= 12 ? 3 : (got.length >= 4 ? 2 : 0)][1]; }
+readHash();
+</script>
+</body>
+</html>

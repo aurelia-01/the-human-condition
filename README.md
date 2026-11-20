@@ -7,6 +7,7 @@
 ## 作品文件
 
 - `index.html` 是从 Claude 导出的原版开场，包含门的图像、动画和进入展馆的链接。GitHub Pages 直接发布这个文件。
+- `original-source/` 收录原交接包中的制作文件，包括开场页模板、构建脚本、原始图片、早期 MANI 交互模块和创作提示词。
 - `engine/scene-original.html` 保存此次发布前的 MANI 导出。`engine/scene.html` 存放展馆导出，供后续维护。
 - `engine/assets/models/` 保存导出引用的项目模型。`engine/assets/manifest.json` 记录原始地址、文件大小和 SHA-256。
 - `SHA256SUMS` 可用于核对所列作品文件的完整性。

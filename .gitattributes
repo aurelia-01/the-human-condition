@@ -3,3 +3,4 @@
 *.zip binary
 *.md text eol=lf
 *.json text eol=lf
+original-source/** -text
