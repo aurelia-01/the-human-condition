@@ -1,0 +1,3140 @@
+<!DOCTYPE html>
+<html>
+<head><!--__M3D_LIVE__--><script>(function m3dLoader(O, domFactory, identityFactory) {
+  var W = window;
+  W.__m3dScenes = W.__m3dScenes || [];
+    var identity=identityFactory && (W.__m3dImportedIdentity ||= identityFactory());
+  W.__THREE_DEVTOOLS__ = W.__THREE_DEVTOOLS__ || new EventTarget();
+  var U = O.filter(function (d) { return d.ui; });
+  O = O.filter(function (d) { return !d.ui; });
+  var uiDone=new Set(), reasons=new Map(), openedAt=Date.now();
+  function report() {
+    var entries=U.map(function(d){return {type:'ui',label:d.ref?.parameter || d.ref?.id || d.ref?.tag,status:uiDone.has(d)?'applied':Date.now()-openedAt>10000?'missing':'waiting'};});
+    O.forEach(function(d,i) {
+      var done=D?.[i]&&(!d.pa||d.o||d.x||d.ord||D['p'+i])&&(d.n===undefined||d.o||d.x||D['n'+i]);
+      entries.push({type:d.ms?'material':d.ord?'order':d.x?'remove':d.o?'create':d.rt?'runtime':'object',
+        label:d.name || d.objectRef || d.path,id:d.objectRef,scene:d.sceneRef,
+        slots:d.ms?Object.keys(d.slots||{}):undefined,
+        status:done?'applied':reasons.get(i)||(Date.now()-openedAt>10000?'missing':'waiting')});
+    });
+    var next={entries:entries.slice(0,100),total:entries.length,applied:entries.filter(function(e){return e.status==='applied';}).length};
+    if(JSON.stringify(next)!==JSON.stringify(W.__m3dRestoreStatus)) {
+      W.__m3dRestoreStatus=next;
+      W.dispatchEvent(new Event('m3d:restore-status'));
+    }
+  }
+  if (U.length) {
+    var dom = domFactory(document), pending = U.slice(), attempt = 0;
+    function applyUI() {
+      pending = pending.filter(function (d) {
+        if(!dom.apply(d.ref,d.values))return true;
+        uiDone.add(d);
+        return false;
+      });
+      report();
+      if (pending.length && ++attempt < 40) setTimeout(applyUI,250);
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded',applyUI,{once:true});
+    else applyUI();
+  }
+  if (!O.length) {report();return;}
+  var R = [], D = {}, N = {}, C = {}, need = 0, busy = false, fin = false, frames = 0;
+  O.forEach(function (d) { need++; if (d.ord) return; if (!d.o && !d.x && d.pa) need++; if (!d.o && !d.x && d.n !== undefined) need++; });
+  W.__m3dLivePending = true;
+  setTimeout(function () { W.__m3dLivePending = false; }, 4000);
+  W.__THREE_DEVTOOLS__.addEventListener('observe', function (e) {
+    var o = e.detail;
+    if (o && o.isScene && W.__m3dScenes.indexOf(o) < 0) W.__m3dScenes.push(o);
+    if (o && o.isWebGLRenderer) {
+      var f = o.render.bind(o), r = { o: o, s: null, c: null };
+      R.push(r);
+      o.render = function (s, c) {
+        if (!o.getRenderTarget || !o.getRenderTarget()) {
+          r.s = s; r.c = c;
+          if (!busy && !fin && frames < 1500 && (++frames <= 120 || frames % 10 === 0)) { busy = true; try { apply(true); } catch (_) {} busy = false; }
+        }
+        return f(s, c);
+      };
+    }
+  });
+  function pick() {
+    var b = null, n = 0;
+    var scenes=W.__m3dScenes.slice();
+    if(Array.isArray(W.AFRAME?.scenes))W.AFRAME.scenes.forEach(function (el) {
+      if(el?.object3D && scenes.indexOf(el.object3D)<0)scenes.push(el.object3D);
+    });
+    scenes.forEach(function (s) {
+      var c=0;
+      try {s.traverse(function (o) {if(o!==s)c+=o.geometry?4:1;});} catch (_) {return;}
+      if(c>n){n=c;b=s;}
+    });
+    return b;
+  }
+  function at(s, path) {
+    var cur = s, ix = String(path).split('/');
+    for (var i = 0; i < ix.length; i++) { cur = cur && cur.children && cur.children[+ix[i]]; if (!cur) return null; }
+    return cur;
+  }
+  function within(o, root) { for (var c = o; c; c = c.parent) if (c === root) return true; return false; }
+  function mark(t) {
+    t.traverse(function (n) { n.__m3dGone = true; });
+    var l = (W.__m3dScenes || []).concat(W.__M3D_SCENE ? [W.__M3D_SCENE] : []);
+    l.forEach(function (sc) {
+      if (!sc || sc.__m3dG) return;
+      sc.__m3dG = 1;
+      var oa = sc.add;
+      sc.add = function () { var a = [], i; for (i = 0; i < arguments.length; i++) if (!(arguments[i] && arguments[i].__m3dGone)) a.push(arguments[i]); return a.length ? oa.apply(this, a) : this; };
+    });
+  }
+  var identityIndexes=new Map();
+  var legacyIdentityIndexes=new Map();
+  function find(s, all, ref, strict) {
+    if (!ref) return null;
+    if (!ref.sceneRef && Number.isSafeInteger(ref.sc) && W.__m3dScenes[ref.sc]!==s) return null;
+    if (ref.root) return s;
+    if (ref.o) return N[ref.o] || null;
+    if (ref.objectRef && identity && ref.sceneRef) {
+      var entry=identityIndexes.get(s);
+      if(!entry) {entry=identity.index(s,ref.sceneRef);identityIndexes.set(s,entry);}
+      if(entry.byId.has(ref.objectRef))return entry.byId.get(ref.objectRef)||null;
+      var previous=legacyIdentityIndexes.get(s);
+      if(!previous) {
+        previous=[identity.index(s,ref.sceneRef,12),identity.index(s,ref.sceneRef,11)];
+        legacyIdentityIndexes.set(s,previous);
+      }
+      var first=previous[0].byId.get(ref.objectRef), second=previous[1].byId.get(ref.objectRef);
+      if(first===null||second===null)return null;
+      return first&&second&&first!==second ? null : first||second||null;
+    }
+    var hasPath = ref.path !== undefined && ref.path !== '';
+    var key = s.uuid + '|' + (strict ? 'S' : 'L') + (ref.name || '') + '|' + (hasPath ? ref.path : '');
+    if (C[key]) return C[key];
+    var t = null, c;
+    var q = hasPath ? at(s, ref.path) : null;
+    if (ref.name) {
+      c = all.filter(function (o) { return o.parent && o.__m3dN0 === ref.name; });
+      if (!c.length) c = all.filter(function (o) { return o.parent && o.name === ref.name; });
+      if (c.length === 1 || (c.length && !strict && !ref.sg)) t = c[0];
+      else if (c.length > 1) t = one(c, ref) || (q && c.indexOf(q) >= 0 && fits(q, ref) ? q : null);
+    } else if (hasPath) {
+      // No name. Old tables (no fingerprint): the child index, as before. New ones: the index only if that object still looks like
+      // the one the entry was made for; otherwise the one unnamed object with this shape at this original position; otherwise nothing.
+      if (!ref.sg) t = q;
+      else if (q && !q.__m3dN0 && fits(q, ref) && home(q, ref)) t = q;
+      else t = one(all.filter(function (o) { return o.parent && !o.__m3dN0; }), ref) || (q && !q.__m3dN0 && fits(q, ref) ? q : null);
+    }
+    if (t) C[key] = t;
+    return t;
+  }
+  // Fingerprint of an object: sg = type + vertex count, b = its position before any manual change (setProps keeps it in __m3dP0).
+  function fits(o, ref) { if (!ref.sg) return true; var g=o.geometry, a=g&&g.attributes&&g.attributes.position, count=a&&a.count||g&&g.vertices&&g.vertices.length; return (o.type || 'Object3D') + (count ? ':' + count : '') === ref.sg; }
+  function home(o, ref) { var b = ref.b, p = o.__m3dP0 || o.position; return !b || Math.abs(p.x - b[0]) + Math.abs(p.y - b[1]) + Math.abs(p.z - b[2]) < 0.002; }
+  function one(c, ref) { if (!ref.sg || !ref.b) return null; var m = c.filter(function (o) { return fits(o, ref) && home(o, ref); }); return m.length === 1 ? m[0] : null; }
+  function setProps(t, d) {
+    if (d.ms) {
+      var slots = Array.isArray(t.material) ? t.material : Array.isArray(t.material?.materials) ? t.material.materials : [t.material];
+      var slotRefs=identity && identity.slotRefs(t), edits=[];
+      for (var key in d.slots) {
+        var spec=d.slots[key], index=spec.slotRef&&slotRefs ? slotRefs.indexOf(spec.slotRef) : Number(key), mat=slots[index];
+        if (mat?.type!==spec.type || mat.isShaderMaterial || mat.isRawShaderMaterial || !mat.color?.setHex ||
+          !Number.isInteger(spec.color) || spec.color<0 || spec.color>0xffffff) return false;
+        edits.push([mat,spec.color]);
+      }
+      edits.forEach(function(edit){edit[0].color.setHex(edit[1]);});
+      return true;
+    }
+    if (d.p) { if (!t.__m3dP0) t.__m3dP0 = { x: t.position.x, y: t.position.y, z: t.position.z }; t.position.set(d.p[0], d.p[1], d.p[2]); t.rotation.set(d.r[0], d.r[1], d.r[2]); t.scale.set(d.s[0], d.s[1], d.s[2]); }
+    if (d.v !== undefined) t.visible = d.v;
+    if (d.cs !== undefined) t.castShadow = !!d.cs;
+    if (d.rs !== undefined) t.receiveShadow = !!d.rs;
+    if (d.m && t.material && !Array.isArray(t.material)) putMat(t.material, d.m);
+    if (d.lt && (t.isLight || /Light$/.test(t.type))) putLt(t, d.lt);
+    t.updateMatrixWorld(true);
+    var app=W.__M3D_EDITOR__;if(app&&app.onEditorObjectChange)app.onEditorObjectChange(t,d);
+  }
+  // map 贴图：值是 JSON 字符串 {u,rp,of,c,ro}；'' 只清掉编辑器自己贴的图（带 __m3dMap 标记），脚本自己的贴图不碰
+  function putMap(mt, s) {
+    if (typeof s !== 'string' || !('map' in mt)) return;
+    var cur = mt.map;
+    if (!s) { mt.__m3dMapWant = ''; if (cur && cur.__m3dMap) { try { if (cur.image && cur.image.pause) cur.image.pause(); } catch (_) {} mt.map = null; mt.needsUpdate = true; } return; }
+    if (cur && cur.__m3dMap === s) return;
+    var d; try { d = JSON.parse(s); } catch (_) { return; }
+    if (!d || !d.u) return;
+    function tf(t) { if (d.rp) t.repeat.set(d.rp[0], d.rp[1]); if (d.of) t.offset.set(d.of[0], d.of[1]); if (d.c) t.center.set(d.c[0], d.c[1]); t.rotation = d.ro || 0; t.__m3dMap = s; }
+    mt.__m3dMapWant = s;   // 同步记下：贴图类要等 import('three')，场景快照可能先发出去
+    if (cur && cur.__m3dMap && cur.__m3dU === d.u) { tf(cur); return; }
+    function go(T) {
+      if (!T || !T.Texture || mt.__m3dMapWant !== s) return;
+      var t;
+      if (d.v) {   // 视频贴图
+        if (!T.VideoTexture) return;
+        var el = document.createElement('video');
+        el.crossOrigin = 'anonymous'; el.loop = true; el.muted = true; el.playsInline = true; el.src = d.u;
+        var pl = el.play(); if (pl && pl.catch) pl.catch(function () {});
+        t = new T.VideoTexture(el);
+      } else {
+        var im = new Image(); t = new T.Texture(im);
+        im.crossOrigin = 'anonymous';
+        im.onload = function () { t.needsUpdate = true; };
+        im.src = d.u;
+      }
+      t.colorSpace = 'srgb'; t.wrapS = t.wrapT = 1000; t.__m3dU = d.u; tf(t);
+      var old = mt.map; mt.map = t; mt.needsUpdate = true;
+      if (old && old.__m3dMap) { try { if (old.image && old.image.pause) old.image.pause(); } catch (_) {} if (old.dispose) old.dispose(); }
+    }
+    if (W.__m3dT) go(W.__m3dT);
+    else try { import('three').then(function (T) { W.__m3dT = T; go(T); }, function () {}); } catch (_) {}
+  }
+  function putMat(mt, p) {
+    for (var k in p) {
+      if (!Object.prototype.hasOwnProperty.call(p, k) || k === 'type') continue;
+      var v = p[k];
+      if (k === 'map') { putMap(mt, v); continue; }
+      if (mt[k] && typeof mt[k].setHex==='function') mt[k].setHex(v); else if (typeof mt[k] === typeof v) mt[k] = v;
+    }
+    mt.needsUpdate = true;
+  }
+  function putLt(l, p) {
+    if ('c' in p && l.color && l.color.isColor && isFinite(p.c)) l.color.setHex(p.c);
+    if ('g' in p && l.groundColor && l.groundColor.isColor && isFinite(p.g)) l.groundColor.setHex(p.g);
+    var m = { i: 'intensity', d: 'distance', de: 'decay', a: 'angle', p: 'penumbra' };
+    for (var k in m) if (k in p && typeof l[m[k]] === 'number' && isFinite(p[k])) l[m[k]] = Number(p[k]);
+    if (l.shadow) { var sm = { b: 'bias', nb: 'normalBias', rd: 'radius' }; for (var j in sm) if (j in p && typeof l.shadow[sm[j]] === 'number' && isFinite(p[j])) l.shadow[sm[j]] = Number(p[j]); }
+  }
+  var T0 = null;
+  function lightCtor(all, ty) {
+    var f = null;
+    all.forEach(function (o) { if (!f && o.isLight && o.type === ty) f = o.constructor; });
+    if (f) return f;
+    if (T0 === null) { T0 = 0; try { import('three').then(function (m) { T0 = m; }, function () { T0 = false; }); } catch (_) { T0 = false; } }
+    return T0 && typeof T0[ty] === 'function' ? T0[ty] : null;
+  }
+  function d64(x, T) { var b = atob(x), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new T(u.buffer); }
+  var K0 = null;
+  // 2026-11-10: borrow the BASE class. The first Mesh in a scene is often a subclass (three's Sky / Water extend Mesh, build their own
+  // 1x1x1 box + ShaderMaterial and ignore the constructor arguments): every primitive added from the editor came out as a locked sky box.
+  function baseOf(C, ok) {
+    for (var i = 0; i < 4; i++) { var P = Object.getPrototypeOf(C), t = null; if (typeof P !== 'function') break; try { t = new P(); } catch (_) {} if (t && ok(t)) C = P; else break; }
+    return C;
+  }
+  function kit(s, all) {
+    if (K0) return K0;
+    var K = { mats: {}, obj: Object.getPrototypeOf(s.constructor) };
+    all.forEach(function (o) {
+      var pos = o.geometry && o.geometry.attributes && o.geometry.attributes.position;
+      if (!K.mesh && o.type === 'Mesh' && pos && !pos.isInterleavedBufferAttribute) {
+        K.mesh = baseOf(o.constructor, function (t) { return !!t.isMesh; }); K.attr = pos.constructor;
+        var C = o.geometry.constructor;
+        for (var i = 0; i < 4; i++) { var P = Object.getPrototypeOf(C), t = null; try { t = new P(); } catch (_) {} if (t && t.isBufferGeometry) C = P; else break; }
+        K.geo = C;
+      }
+      var mt = o.material;
+      if (mt && !Array.isArray(mt) && /^Mesh.*Material$/.test(mt.type) && !K.mats[mt.type]) K.mats[mt.type] = baseOf(mt.constructor, function (t) { return t.type === mt.type && !t.isShaderMaterial; });
+    });
+    return K.mesh && K.geo && K.attr ? (K0 = K) : null;
+  }
+  function mkGeo(K, d) {
+    var g = new K.geo();
+    g.setAttribute('position', new K.attr(d64(d.pos, Float32Array), 3));
+    if (d.nor) g.setAttribute('normal', new K.attr(d64(d.nor, Float32Array), 3));
+    if (d.uv) g.setAttribute('uv', new K.attr(d64(d.uv, Float32Array), 2));
+    if (d.idx) g.setIndex(Array.prototype.slice.call(d64(d.idx, d.ix === 32 ? Uint32Array : Uint16Array)));
+    g.computeBoundingSphere(); g.computeBoundingBox();
+    return g;
+  }
+  function mkMat(K, d) {
+    var C = K.mats[d.type] || K.mats.MeshStandardMaterial || K.mats.MeshPhysicalMaterial || K.mats.MeshBasicMaterial || K.mats[Object.keys(K.mats)[0]];
+    var m = new C(); putMat(m, d); return m;
+  }
+  function apply(inFrame) {
+    var app=W.__M3D_EDITOR__;if(document.querySelector('meta[name="mani-garden-template"]')&&(!app||!app.ready))return false;
+    var s = app&&app.scene||pick(), groups = new Map();
+    var candidates=W.__m3dScenes.slice();
+    if(s&&!candidates.includes(s))candidates.push(s);
+    var ids=identity&&identity.sceneMatches(candidates);
+    identityIndexes.clear();
+    legacyIdentityIndexes.clear();
+    O.forEach(function(d,i) {
+      var scope=Number.isSafeInteger(d.sc) ? d.sc : d.pa?.sc;
+      var stable=d.sceneRef||d.pa?.sceneRef;
+      var scene=stable&&ids ? ids.get(stable)
+        : Number.isSafeInteger(scope) ? candidates[scope] : s;
+      if (!scene || !(scene.isScene || scene.type==='Scene')) return;
+      if (!groups.has(scene)) groups.set(scene,[]);
+      groups.get(scene).push([d,i]);
+    });
+    groups.forEach(function(entries,scene){applyScene(scene,entries,inFrame);});
+    if (W.__m3dLivePending && groups.size) { W.__m3dLivePending = false; try { W.dispatchEvent(new Event('m3d:live-applied')); } catch (_) {} }
+    fin = Object.keys(D).length >= need;
+    report();
+    return fin;
+  }
+  function applyScene(s, entries, inFrame) {
+    function each(fn) { entries.forEach(function(entry){fn(entry[0],entry[1]);}); }
+    var all = []; s.traverse(function (o) { all.push(o); });
+    all.forEach(function (o) { if (o.__m3dN0 === undefined) o.__m3dN0 = o.name; });
+    function own(d) { return d.targetOid ? N[d.targetOid] || null : find(s, all, d, !!(d.x || d.pa)); }
+    each(function (d) {
+      if (d.ord) { if (d.ids && d.ids.length > 1) { find(s, all, d.pa, true); d.ids.forEach(function (r) { find(s, all, r, true); }); } return; }
+      if (d.o) { if (d.c) find(s, all, d.c, true); if (d.pa) find(s, all, d.pa, true); return; }
+      if(d.rt)return;own(d); if (d.pa) find(s, all, d.pa, true);
+    });
+    var hit = 0, prog = true;
+    var app=W.__M3D_EDITOR__, edits=new Set();
+    each(function(d,i){if(!D[i]&&d.rt&&app&&app.setProjectState){app.setProjectState(d.state);D[i]=1;hit++;}});
+    while (prog) {
+      prog = false;
+      each(function (d, i) {
+        if (D[i] || !d.o) return;
+        if (d.x) { D[i] = 1; return; }
+        var par = find(s, all, d.pa, true); if (!par) return;
+        var t;
+        if (d.g) { var Base = Object.getPrototypeOf(s.constructor); t = new Base(); }
+        else if (d.nm) {
+          var K = kit(s, all); if (!K) return;
+          t = new K.mesh(mkGeo(K, d.geo), mkMat(K, d.mt));
+        } else if (d.lt) {
+          var LC = lightCtor(all, d.lt.t); if (!LC) return;
+          t = new LC();
+        } else {
+          var src = find(s, all, d.c, true); if (!src) return;
+          t = src.clone(false);
+          if (t.material) t.material = Array.isArray(t.material) ? t.material.map(function (m) { return m.clone(); }) : t.material.clone();
+        }
+        t.name = d.name || ''; t.__m3dN0 = t.name; setProps(t, d); par.add(t);
+        N[d.o] = t; t.userData = t.userData || {}; t.userData.__m3dO = d.o; D[i] = 1; hit++; prog = true; all.push(t); edits.add('structure');
+      });
+    }
+    [false,true].forEach(function (slots) {
+      each(function (d,i) {
+        if (!!d.ms !== slots || D[i] || d.o || d.x || d.ord || d.rt) return;
+        var t = own(d);
+        if(!t) {
+          if(d.objectRef&&identityIndexes.get(s)?.byId.has(d.objectRef))reasons.set(i,'conflict');
+          return;
+        }
+        if (typeof d.v==='boolean' && d.v!==t.visible) edits.add('structure');
+        if(d.p&&identity?.objectAuthority(t)) {reasons.set(i,'project-controlled');return;}
+        if(setProps(t,d)===false) {reasons.set(i,'material-mismatch');return;}
+        D[i] = 1; hit++;reasons.delete(i);
+        if (d.p) edits.add(t.isLight?'lights':'transforms');
+        if (d.ms || d.m) edits.add('materials');
+        if (d.lt) edits.add('lights');
+      });
+    });
+    each(function (d, i) {
+      if (D['p' + i] || d.o || d.x || d.ord || !d.pa) return;
+      var t = own(d), np = find(s, all, d.pa, true); if (!t || !np) return;
+      D['p' + i] = 1;
+      if (t !== np && !within(np, t)) { np.add(t); t.updateMatrixWorld(true); hit++; edits.add('structure'); }
+    });
+    each(function (d, i) {
+      if (D['n' + i] || d.o || d.x || d.n === undefined) return;
+      var t = own(d); if (!t) return;
+      t.name = d.n; D['n' + i] = 1; hit++;
+    });
+    each(function (d, i) {
+      if (D[i] || !d.ord) return;
+      if (!d.ids || d.ids.length < 2) { D[i] = 1; return; }
+      var par = find(s, all, d.pa, true); if (!par) return;
+      var ks = [], ok = true;
+      d.ids.forEach(function (r) { var t = find(s, all, r, true); if (!t) ok = false; else if (t.parent === par && ks.indexOf(t) < 0) ks.push(t); });
+      if (!ok) return;
+      var kids = par.children, slots = [];
+      for (var k = 0; k < kids.length; k++) if (ks.indexOf(kids[k]) >= 0) slots.push(k);
+      for (var j = 0; j < slots.length; j++) kids[slots[j]] = ks[j];
+      D[i] = 1; hit++;
+    });
+    var rm = [];
+    each(function (d, i) { if (D[i] || d.o || d.ord || !d.x) return; var t = own(d); if (t && t.parent) rm.push([i, t]); });
+    rm.forEach(function (e) { var t = e[1]; if (!t.parent) return; D[e[0]] = 1; hit++; t.visible = false; mark(t); t.parent.remove(t); edits.add('structure'); });
+    edits.forEach(function(kind){W.dispatchEvent(new CustomEvent('m3d:scene-edited',{detail:{scene:s,kind:kind}}));});
+    if (hit) {
+      var a = W.__M3D_EDITOR__; if (a && a.invalidate) a.invalidate();
+      if (!inFrame) R.forEach(function (r) { if (r.s === s && r.c && (!r.o.getRenderTarget || !r.o.getRenderTarget())) r.o.render(r.s, r.c); });
+    }
+  }
+  var n = 0, iv = setInterval(function () {
+    // A locked display or a cold WebGPU pipeline can wait for longer than a minute.
+    // Count retries only after the explicit garden runtime is ready.
+    if(document.querySelector('meta[name="mani-garden-template"]')&&(!W.__M3D_EDITOR__||!W.__M3D_EDITOR__.ready))return;
+    if (apply() || ++n > 300) { fin = true; clearInterval(iv); }
+  }, 200);
+  report();
+  W.addEventListener('m3d:scene-ready',function(){if(!fin)apply();});
+})(/*O*/[{"name":"One_complete_freestanding_retro-futu","path":"1181","sg":"Group","b":[0,0,0],"p":[0,0.4898,0],"r":[0,0,0],"s":[1,1,1],"v":true},{"name":"ground","path":"3","sg":"Mesh:130","b":[0,-0.08,0],"p":[0,-0.08,0],"r":[-1.5708,0,0],"s":[1,1,1],"v":false},{"name":"The_Algorithmic_Filter_one_freestand","path":"1181","sg":"Group","b":[0,0,0],"p":[0,0.4897,0],"r":[0,0,0],"s":[1,1,1],"v":true}]/*O*/, null)</script>
+<meta charset="utf-8">
+<style>html,body{margin:0;height:100%;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"}}</script>
+</head>
+<body>
+<!--__M3D_INJ__--><script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
+const __M=[
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/0eaeb84996cea804001e6294618cb5157918b2e2ac87d69a020766e883d7e4fd.glb","name":"IDENTITY_01","position":[0,0.5,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"116a0226-a07e-411d-a1d1-9b2a708b77dd"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/8d71c8246f26ebdf0918421fd03ff2d74428ddffabebd041e402f8205cc449e2.glb","name":"Cultural_Mutation_Tree_a_single_magn","position":[0,0.3851180374622345,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"9d4a9337-36f4-4c64-83ea-109c87810074"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/deee99aeff068c99b11b623a06a510cd37c14e8a96e23217b5368f42f18e8ce4.glb","name":"One_complete_freestanding_retro-futu","position":[0,0.4898,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"c3c04e2a-2ff6-4bcf-a80d-4a23d6d28b72"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/3e617b60d9aa5ca520725c27024d67ecc161acd33c6a228db7073823e77b5bbe.glb","name":"The_Weather_of_Emotion_one_sculptura","position":[0,0.5,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"b4e68156-5430-4b5c-a8ab-09692a21b6a5"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/c85374c142149c1a2cfc4d389262e29e276941ad29a00b0b24e1bfcfdead137b.glb","name":"The_Face_That_Keeps_Forming_one_unca","position":[0,0.5,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"3ee0e8dd-515b-499b-848a-6cde0712a6db"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/e6d802b4f755e0f12195fe17e5c17018315847e8bf165ad228535d6d602bff2f.glb","name":"A_single_freestanding_fine_art_museu","position":[0,0.5,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"37ddf8ee-6cd2-4f8b-9235-040934245634"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/9159c7b68b0315791b45116ced32fbdaf9b67c3b55b649dd05228cb21ed671ce.glb","name":"Collective_Memory_one_freestanding_m","position":[0,0.4885162115097046,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"c8898b17-f62d-409a-8fb2-b5679b6daac4"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/406aae723ccd953a60bca2a8f76a2861d0134213cb695c01ea5fae989ce44655.glb","name":"Fragile_Truth_one_freestanding_conte","position":[0,0.5,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"129a1190-170c-4192-a5d4-b0f46380d86c"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/df329756cb07c6376ee026edfd6d51b625958259bad2ea341bba149e9e8a0259.glb","name":"The_Invisible_Rules_one_complete_arc","position":[0,0.10850585997104645,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"ff85668c-ce48-4c60-8b73-c5d49ab125db"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/9c9b42cc20081ac68a1c31184207003c1c3ebefa3057a8b62c0e14bee230516d.glb","name":"The_Last_Human_Message_one_freestand","position":[0,0.3582722246646881,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"a428785f-648b-4b2a-bd3f-791586388281"},
+{"src":"https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/ac6b599b4caba905a5ddb07c227ab26630122719ddd43d2acd128bd82d5d2f3f.glb","name":"The_Algorithmic_Filter_one_freestand","position":[0,0.4897,0],"rotation":[0,0,0],"scale":[1,1,1],"uid":"16fee998-0807-4880-bde4-5cdaa82b16de"}
+];
+const _add=THREE.Object3D.prototype.add;
+window.__m3dEnvS=window.__m3dEnvS||function(s){if(!s)return false;if(s.name==="RoomEnvironment"||s.name==="DebugEnvironment")return true;return !s.background&&!s.fog&&s.children.length>0&&!s.children.some(function(c){return !!c.name;});};
+THREE.Object3D.prototype.add=function(){ if(this.isScene){var _c=window.__M3D_SCENE;if(!_c||(window.__m3dEnvS(_c)&&!window.__m3dEnvS(this)))window.__M3D_SCENE=this;} return _add.apply(this,arguments); };
+const _l=new GLTFLoader();const _d=new DRACOLoader();_d.setDecoderPath('https://maniengine.com/Engine/js/vendor/three-0.187.0/examples/jsm/libs/draco/gltf/');_l.setDRACOLoader(_d);try{_l.setMeshoptDecoder(MeshoptDecoder);}catch(e){}
+var _LK=/tripo|meshy|rodin|hyper3d|hunyuan/i;
+function __m3dPing(){try{parent.postMessage({type:"m3d-model",pending:window.__M3D_PENDING||0},"*");}catch(e){}}
+function _place(s){var groups={};__M.forEach(function(m){if(!m||!m.src)return;(groups[m.src]=groups[m.src]||[]).push(m);});Object.keys(groups).forEach(function(src){var list=groups[src];window.__M3D_PENDING=(window.__M3D_PENDING||0)+list.length;__m3dPing();_l.load(src,function(g){var proto=g.scene||(g.scenes&&g.scenes[0]);var anims=g.animations||[];if(!proto){window.__M3D_PENDING-=list.length;__m3dPing();return;}list.forEach(function(m){window.__M3D_PENDING--;__m3dPing();var o=skClone(proto);o.name=m.name||"model";o.animations=anims;o.traverse(function(c){if(c!==o&&c.name&&_LK.test(c.name))c.name="part";});if(m.position)o.position.fromArray(m.position);if(m.rotation)o.rotation.set(m.rotation[0],m.rotation[1],m.rotation[2]);if(m.scale)o.scale.fromArray(m.scale);var _t=(window.__M3D_SCENE&&!window.__m3dEnvS(window.__M3D_SCENE))?window.__M3D_SCENE:s;_t.add(o);var _mv=setInterval(function(){if(o.__m3dGone){clearInterval(_mv);return;}var ns=window.__M3D_SCENE;if(ns&&ns!==o.parent&&!window.__m3dEnvS(ns))ns.add(o);},500);setTimeout(function(){clearInterval(_mv);},30000);if(m.x){(window.__M3D_XQ=window.__M3D_XQ||[]).push({o:o,x:m.x});}});},undefined,function(e){window.__M3D_PENDING-=list.length;__m3dPing();console.warn("inject model failed",src,e);});});}
+var _n=0,_iv=setInterval(function(){_n++;var _s=window.__M3D_SCENE;if(_s&&(!window.__m3dEnvS(_s)||_n>200)){clearInterval(_iv);_place(_s);}else if(_n>240)clearInterval(_iv);},50);
+</script><!--__/M3D_INJ__-->
+<script type="module">
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa9cdec);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 500);
+camera.name = "Camera";
+camera.position.set(0, 1.7, 0);
+camera.quaternion.set(0, 1, 0, 0);
+camera.userData = {"__m3d_viewcam":1,"__m3d_id":"ajc0z36ap9de","__m3d_cam_nav":"wasd"};
+camera.userData.__m3d_viewcam = 1;
+camera.userData.__m3d_cam_nav = 'wasd';
+scene.add(camera);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+const canvas = renderer.domElement;
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+/* __M3D_WASD_BEGIN__ */
+const __createWalkCollision = function createWalkCollision(THREE, scene, options = {}) {
+  const radius = Math.max(.05, Number(options.radius) || .25);
+  const eyeHeight = Math.max(.5, Number(options.eyeHeight) || 1.6);
+  const stepHeight = Math.max(0, Number(options.stepHeight) || .25);
+  const eps = 1e-6, colliders = [];
+  const v0 = new THREE.Vector3(), v1 = new THREE.Vector3();
+  const bounds = new THREE.Box3(), localSize = new THREE.Vector3();
+  let lastRefresh = 0;
+
+  function shown(object) {
+    for (let p = object; p; p = p.parent) if (!p.visible) return false;
+    return true;
+  }
+  function isWall(object, size) {
+    const data = object.userData || {};
+    if (data.__m3d_walk_collision === false) return false;
+    if (data.__m3d_walk_collision === 'wall' || data.__m3d_walk_collision === true) return true;
+    const name = object.name || '';
+    if (/(^|[\s_-])wall([\s_-]|$)/i.test(name) && !/(cabinet|outlet|shelf|light|sconce|art|switch|mirror|decor)/i.test(name)) return true;
+    // Preserve existing authored collision boxes when their proportions
+    // describe a wall. Floors, steps and ordinary furniture are not walls.
+    const phys = data.__m3d_phys;
+    return !!phys?.collider && size.y >= 1.2 && Math.min(size.x, size.z) <= .3 && Math.max(size.x, size.z) >= .5;
+  }
+  function refresh() {
+    colliders.length = 0; scene.updateMatrixWorld(true);
+    scene.traverse(object => {
+      if (!object.isMesh || !object.geometry || !shown(object)) return;
+      const geo = object.geometry;
+      if (!geo.boundingBox) geo.computeBoundingBox();
+      if (!geo.boundingBox || geo.boundingBox.isEmpty()) return;
+      geo.boundingBox.getSize(localSize);
+      const matrix = object.matrixWorld;
+      const sx = new THREE.Vector3().setFromMatrixColumn(matrix, 0).length();
+      const sy = new THREE.Vector3().setFromMatrixColumn(matrix, 1).length();
+      const sz = new THREE.Vector3().setFromMatrixColumn(matrix, 2).length();
+      if (Math.min(sx, sy, sz) < eps) return;
+      bounds.copy(geo.boundingBox).applyMatrix4(matrix);
+      if (bounds.isEmpty() || !Number.isFinite(bounds.min.x + bounds.max.x + bounds.min.y + bounds.max.y + bounds.min.z + bounds.max.z)) return;
+      const size = new THREE.Vector3(localSize.x * sx, bounds.max.y - bounds.min.y, localSize.z * sz);
+      if (!isWall(object, size)) return;
+      const inverse = matrix.clone().invert(), local = geo.boundingBox;
+      colliders.push({ object, inverse, matrix: matrix.clone(), minY: bounds.min.y, maxY: bounds.max.y,
+        minX: local.min.x - radius / sx, maxX: local.max.x + radius / sx,
+        minZ: local.min.z - radius / sz, maxZ: local.max.z + radius / sz });
+    });
+    lastRefresh = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    return colliders.length;
+  }
+  function hit(c, start, move) {
+    v0.set(start.x, start.y, start.z).applyMatrix4(c.inverse);
+    v1.set(start.x + move.x, start.y, start.z + move.z).applyMatrix4(c.inverse);
+    const px = v0.x, pz = v0.z, dx = v1.x - px, dz = v1.z - pz;
+    let enter = -Infinity, exit = Infinity, nx = 0, nz = 0;
+    const inside = px > c.minX + eps && px < c.maxX - eps && pz > c.minZ + eps && pz < c.maxZ - eps;
+    if (inside) {
+      const faces = [[px - c.minX, -1, 0], [c.maxX - px, 1, 0], [pz - c.minZ, 0, -1], [c.maxZ - pz, 0, 1]];
+      faces.sort((a, b) => a[0] - b[0]);
+      nx = faces[0][1]; nz = faces[0][2];
+      // A camera starting inside a collision margin must be able to leave.
+      if (dx * nx + dz * nz >= -eps) return null;
+      enter = 0;
+    } else {
+      for (const [p, d, min, max, axis] of [[px, dx, c.minX, c.maxX, 'x'], [pz, dz, c.minZ, c.maxZ, 'z']]) {
+        if (Math.abs(d) < eps) { if (p < min || p > max) return null; continue; }
+        let near = (min - p) / d, far = (max - p) / d, normal = -1;
+        if (near > far) { const tmp = near; near = far; far = tmp; normal = 1; }
+        if (near > enter) { enter = near; nx = axis === 'x' ? normal : 0; nz = axis === 'z' ? normal : 0; }
+        exit = Math.min(exit, far); if (enter > exit) return null;
+      }
+      if (enter < -eps || enter > 1 || exit < 0) return null;
+      enter = Math.max(0, enter);
+    }
+    const normal = new THREE.Vector3(nx, 0, nz).transformDirection(c.matrix);
+    normal.y = 0; if (normal.lengthSq() < eps) return null; normal.normalize();
+    return { time: enter, normal };
+  }
+  function move(position, dx, dz) {
+    if (!Number.isFinite(dx) || !Number.isFinite(dz)) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - lastRefresh > 1000) refresh();
+    const remaining = new THREE.Vector3(dx, 0, dz), feet = position.y - eyeHeight;
+    for (let pass = 0; pass < 3 && remaining.lengthSq() > eps * eps; pass++) {
+      let first = null;
+      for (const c of colliders) {
+        if (!shown(c.object) || c.maxY <= feet + stepHeight || c.minY >= feet + eyeHeight - .05) continue;
+        const current = hit(c, position, remaining);
+        if (current && (!first || current.time < first.time)) first = current;
+      }
+      if (!first) { position.x += remaining.x; position.z += remaining.z; break; }
+      const t = Math.max(0, first.time - .0001);
+      position.x += remaining.x * t; position.z += remaining.z * t;
+      remaining.multiplyScalar(1 - t);
+      const inward = remaining.dot(first.normal);
+      if (inward < 0) remaining.addScaledVector(first.normal, -inward);
+      else break;
+    }
+  }
+  refresh();
+  return { move, refresh, get count() { return colliders.length; } };
+};
+const keys = {};
+let yaw = 0, pitch = 0, velY = 0, onFloor = false, look = false, lx = 0, ly = 0, last = performance.now();
+const eu = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+yaw = eu.y; pitch = Math.max(-1.2, Math.min(1.2, eu.x));
+addEventListener('keydown', (e) => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if (controls.enabled === false) return;
+  keys[e.code] = true; if (e.code === 'Space') e.preventDefault();
+});
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+canvas.addEventListener('pointerdown', (e) => { if (e.button !== 2 || controls.enabled === false) return; look = true; lx = e.clientX; ly = e.clientY; });
+addEventListener('pointerup', (e) => { if (e.button === 2) look = false; });
+addEventListener('pointermove', (e) => {
+  if (!look || controls.enabled === false) return;
+  yaw -= (e.clientX - lx) * 0.004; pitch -= (e.clientY - ly) * 0.004;
+  pitch = Math.max(-1.2, Math.min(1.2, pitch)); lx = e.clientX; ly = e.clientY;
+});
+const _ray = new THREE.Raycaster(), _down = new THREE.Vector3(0, -1, 0);
+const __walk = __createWalkCollision(THREE, scene, { radius: 0.25, eyeHeight: 1.6, stepHeight: 0.25 });
+const controls = { enabled: true, update() {
+  const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (this.enabled === false) { for (const code in keys) keys[code] = false; look = false; return; }
+  const speed = (keys.ShiftLeft || keys.ShiftRight) ? 9 : 4.5;
+  const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  const s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  const moveX = (-Math.sin(yaw) * f + Math.cos(yaw) * s) * speed * dt;
+  const moveZ = (-Math.cos(yaw) * f - Math.sin(yaw) * s) * speed * dt;
+  __walk.move(camera.position, moveX, moveZ);
+  if (keys.Space && onFloor) { velY = 6.5; onFloor = false; }
+  velY -= 22 * dt; camera.position.y += velY * dt;
+  _ray.set(camera.position, _down);
+  const hits = _ray.intersectObjects(scene.children, true);
+  let floor = null;
+  for (const h of hits) {
+    if (!h.object || !h.object.isMesh || h.object.name === 'sky') continue;
+    if (h.distance > 0.05 && h.distance < 2.05) { floor = h; break; }
+  }
+  if (floor && velY <= 0) { camera.position.y = floor.point.y + 1.6; velY = 0; onFloor = true; }
+  else onFloor = false;
+  camera.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
+} };
+addEventListener('blur', () => { for (const code in keys) keys[code] = false; look = false; });
+addEventListener('m3d:edit-mode', (e) => { controls.enabled = !e.detail?.editing; for (const code in keys) keys[code] = false; look = false; last = performance.now(); });
+/* __M3D_WASD_END__ */
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{"__m3d_viewcam":1,"__m3d_id":"ajc0z36ap9de","__m3d_cam_nav":"wasd"}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
+
+
+
+
+
+function m3dSkyDomeTexture() {
+  const c = document.createElement('canvas'); c.width = 2; c.height = 512;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 512);
+  gr.addColorStop(0, '#b8d4ff'); gr.addColorStop(0.5, '#d3e2f7'); gr.addColorStop(1, '#e8eef5');
+  g.fillStyle = gr; g.fillRect(0, 0, 2, 512);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+function m3dCheckerTexture() {
+  const c = document.createElement('canvas'); c.width = 4; c.height = 4;
+  const g = c.getContext('2d');
+  g.fillStyle = '#f2f2f2'; g.fillRect(0, 0, 4, 4);
+  g.fillStyle = '#d9d9de'; g.fillRect(0, 0, 2, 2); g.fillRect(2, 2, 2, 2);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(25, 25);
+  t.magFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+const AmbientLight = new THREE.AmbientLight(0xffffff, 0.6);
+AmbientLight.name = "AmbientLight";
+AmbientLight.userData.__m3d_default = 1;
+AmbientLight.userData.__m3d_id = "h4kt361mtra5";
+scene.add(AmbientLight);
+
+const DirectionalLight = new THREE.DirectionalLight(0xffffff, 2.2);
+DirectionalLight.name = "DirectionalLight";
+DirectionalLight.position.set(-2, 4, 2);
+DirectionalLight.userData.__m3d_default = 1;
+DirectionalLight.userData.__m3d_id = "vrekxcf0jn13";
+scene.add(DirectionalLight);
+
+const sky = new THREE.Mesh(new THREE.SphereGeometry(400, 32, 15, 0, 6.2832, 0, 3.1416), new THREE.MeshBasicMaterial({ color: 0xffffff, side: 1, depthWrite: false, toneMapped: false, map: m3dSkyDomeTexture() }));
+sky.name = "sky";
+sky.userData.__m3d_id = "ewzv7h3w0b46";
+scene.add(sky);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95, metalness: 0, side: 2, map: m3dCheckerTexture() }));
+ground.name = "ground";
+ground.rotation.set(-1.5708, 0, 0);
+ground.userData.__m3d_phys = {"collider":"mesh"};
+ground.userData.__m3d_id = "yng6wf51m9f5";
+scene.add(ground);
+
+const MuseumV2 = (() => {
+  const T = THREE, tau = Math.PI * 2, floors = [], veils = [];
+  const wall = new T.MeshStandardMaterial({color:0xf1e9dd, roughness:.6});
+  const stone = new T.MeshStandardMaterial({color:0xc9c7c3, roughness:.35});
+  const glass = new T.MeshStandardMaterial({color:0xe4ebeb, roughness:.05, opacity:.25, transparent:true, depthWrite:false, side:T.DoubleSide});
+  const frost = new T.MeshStandardMaterial({color:0xfff7df, roughness:.55, opacity:.32, transparent:true, depthWrite:false, side:T.DoubleSide});
+  const metal = new T.MeshStandardMaterial({color:0xd9c6a6, metalness:.6, roughness:.35});
+  const glow = new T.MeshStandardMaterial({color:0xffeccd, emissive:0xffd3a0, emissiveIntensity:.85, roughness:.4});
+  const cube = new T.BoxGeometry(1,1,1);
+  const entries = [['Floating Evidence',315,'011 012',0xfaf6ed],['Weather Chamber',0,'005 007',0xd8d3ca],['Reconstruction Lab',45,'003 009',0xfffdf8],['Identity Chamber',135,'001 006',0xf2dfcb],['Machine Archive',180,'004 008 010',0xe4ebef],['Archive Vault',225,'002',0xbdb3a8]];
+  const data = {centre:[0,0,0], entrance:[0,1.7,0], wings:[]};
+  function hideObsoleteAtriumObjects(root) {
+    root.traverse(object => {
+      if (object.name === 'Atrium Archive Platform' || object.name === 'ATRIUM_ARCHIVE_RING') object.visible = false;
+    });
+  }
+  hideObsoleteAtriumObjects(scene);
+  scene.addEventListener('childadded', event => hideObsoleteAtriumObjects(event.child));
+  let time = 0, previous = 0;
+
+  function mesh(name, geo, mat, x=0,y=0,z=0) {
+    const m = new T.Mesh(geo,mat); m.name=name; m.position.set(x,y,z); scene.add(m); return m;
+  }
+  function floor(m) { m.userData.__m3d_phys={collider:'mesh'}; floors.push(m); return m; }
+  function box(name, mat, x,y,z, w,h,d, yaw=0, solid=false) {
+    const m=mesh(name,cube,mat,x,y,z); m.scale.set(w,h,d); m.rotation.y=yaw;
+    if(solid) { m.userData.__m3d_walk_collision='wall'; m.userData.__m3d_phys={collider:'box'}; }
+    return m;
+  }
+  function at(a,r,t) { return [r*Math.cos(a)-t*Math.sin(a), r*Math.sin(a)+t*Math.cos(a)]; }
+  function part(name,mat,a,r,t,y,w,h,d,solid=false) {
+    const [x,z]=at(a,r,t); return box(name,mat,x,y,z,w,h,d,-a,solid);
+  }
+  function ring(name,r,tube,y,mat) {
+    const m=mesh(name,new T.TorusGeometry(r,tube,8,160),mat,0,y,0); m.rotation.x=-Math.PI/2; return m;
+  }
+  function ribbon(name, a, sweep, inner, outer, y, gain, mat, vertical=false) {
+    const p=[], idx=[], n=Math.ceil(sweep*24);
+    for(let i=0;i<=n;i++) {
+      const f=i/n, b=a+sweep*f, c=Math.cos(b), s=Math.sin(b), h=y+gain*f;
+      p.push(inner*c,h,inner*s,outer*c,h+(vertical?1.15:0),outer*s);
+      if(i<n){const j=i*2; idx.push(j,j+2,j+1,j+1,j+2,j+3);}
+    }
+    const g=new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(p,3)); g.setIndex(idx); g.computeVertexNormals();
+    return mesh(name,g,mat);
+  }
+  function instances(name,geo,mat,rows) {
+    const m=new T.InstancedMesh(geo,mat,rows.length), o=new T.Object3D(); m.name=name;
+    rows.forEach(([x,y,z,w,h,d,ry=0],i)=>{o.position.set(x,y,z);o.scale.set(w,h,d);o.rotation.y=ry;o.updateMatrix();m.setMatrixAt(i,o.matrix);});
+    m.instanceMatrix.needsUpdate=true; m.computeBoundingSphere(); scene.add(m); return m;
+  }
+  function sign(name,label,a,r,y,width) {
+    const c=document.createElement('canvas'); c.width=1024;c.height=128;
+    const ctx=c.getContext('2d');ctx.fillStyle='#eee4d4';ctx.fillRect(0,0,1024,128);ctx.fillStyle='#413a33';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='44px Georgia, serif';ctx.fillText(label,512,65,980);
+    const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;
+    const [x,z]=at(a,r,0);
+    const m=mesh(name,new T.PlaneGeometry(width,width/8),new T.MeshBasicMaterial({map:tex,side:T.DoubleSide}),x,y,z); m.rotation.y=-a-Math.PI/2;
+    if(Math.abs(a-1.5*Math.PI)<.01) m.rotation.y+=Math.PI;
+  }
+  function arcWalls(name,r,start,sweep,y,height,n) {
+    for(let i=0;i<n;i++) {
+      const a=start+sweep*(i+.5)/n;
+      part(`${name}_${i+1}`,wall,a,r,0,y,.52,height,2*r*Math.tan(sweep/(2*n))+.11,true);
+    }
+  }
+  function tick(now,playing) {
+    if(previous && playing) time+=Math.min(.05,(now-previous)/1000);
+    previous=now;
+    if(playing) for(let i=0;i<veils.length;i++) veils[i].rotation.z=.028*Math.sin(time*.62+i*1.71);
+  }
+
+  scene.remove(sky); sky.geometry.dispose(); sky.material.map.dispose(); sky.material.dispose();
+  scene.background.setHex(0xded8ce); scene.fog=new T.FogExp2(0xded8ce,.0036);
+  ground.geometry.dispose(); ground.material.map.dispose(); ground.material.dispose();
+  ground.geometry=new T.CircleGeometry(260,128); ground.material=new T.MeshStandardMaterial({color:0xd7d1c9,roughness:.83}); ground.position.y=-.08; ground.rotation.x=-Math.PI/2; floor(ground);
+  AmbientLight.intensity=.18;
+  const hemisphere=new T.HemisphereLight(0xfff5e6,0xb6ab9f,1.55); hemisphere.name='Museum Hemisphere'; scene.add(hemisphere);
+  DirectionalLight.color.setHex(0xfff2dc); DirectionalLight.intensity=2.65; DirectionalLight.position.set(-22,55,-14);
+
+  floor(mesh('Atrium Pale Stone Floor R40',new T.CylinderGeometry(40,40,.24,128),stone,0,-.12,0));
+  floor(ribbon('Ground Concourse R40–48',0,tau,40,48,0,0,stone));
+  const podium=floor(mesh('Atrium Archive Platform',new T.CylinderGeometry(8,8,.4,96),stone,0,.2,0));
+  const archiveRing=ring('ATRIUM_ARCHIVE_RING',6,.35,1.2,glow);
+  const archiveLight=new T.PointLight(0xffd5a2,42,13,2); archiveLight.name='Archive Ring Fill'; archiveLight.position.set(0,1.4,0); scene.add(archiveLight);
+  instances('Atrium Twelve Pale Columns',new T.CylinderGeometry(.6,.6,27,14),wall,Array.from({length:12},(_,i)=>{const [x,z]=at(i*tau/12,44,0);return [x,13.5,z,1,1,1];}));
+
+  const portals=[0,45,135,180,225,270,315].map(d=>d*Math.PI/180);
+  portals.forEach((a,i)=>{
+    const next=portals[i+1]??tau, gap=i===5?.194:.15, following=i===4?.194:.15;
+    arcWalls(`Atrium Lower Shell ${i+1}`,48,a+gap,next-a-gap-following,5,10,Math.max(2,Math.ceil((next-a)*9)));
+  });
+  arcWalls('Atrium Upper Shell',48,0,tau,23,26,64);
+  for(const y of [9,18,27]) {
+    floor(ribbon(`Balcony ${y} Stone Deck`,0,tau,40,48,y,0,stone));
+    const soffit=ribbon(`Balcony ${y} Soffit`,0,tau,40,48,y-.34,0,wall); soffit.material=wall.clone();soffit.material.side=T.DoubleSide;
+    ring(`Balcony ${y} Rounded Inner Fascia`,40,.19,y-.17,stone);
+    ring(`Balcony ${y} Rounded Outer Fascia`,47.89,.15,y-.17,stone);
+    ribbon(`Balcony ${y} Glass Guard`,0,tau,40.18,40.18,y+.04,0,glass,true);
+    ring(`Balcony ${y} Champagne Cap`,40.18,.055,y+1.19,metal);
+    ring(`Balcony ${y} Warm Light Seam`,40.18,.033,y+.78,glow);
+    if(y===27) for(let i=0;i<48;i++) { const a=(i+.5)*tau/48; const guard=part(`Upper Balcony Guard Collider ${i}`,glass,a,40.18,0,y+.58,.13,1.16,5.29,true); guard.material=new T.MeshBasicMaterial({visible:false}); }
+  }
+  function ramp(name,start,y) {
+    const sweep=2.55, r0=33.7,r1=39.7;
+    floor(ribbon(`${name} Stone Walk`,start,sweep,r0,r1,y,9,stone));
+    for(const r of [r0+.09,r1-.09]) {
+      ribbon(`${name} Glass ${r}`,start,sweep,r,r,y+.03,9,glass,true);
+      const rows=[];
+      for(let i=0;i<30;i++) {
+        const a=start+sweep*(i+.5)/30, [x,z]=at(a,r,0), h=y+9*(i+.5)/30;
+        rows.push([x,h+1.17,z,.08,.08,r*sweep/30+.06,-a]);
+        if(r<35 || i<26) {
+          const guard=part(`${name} Guard Collider ${r} ${i}`,glass,a,r,0,h+.57,.10,1.16,r*sweep/30+.14,true);
+          guard.material=new T.MeshBasicMaterial({visible:false});
+        }
+      }
+      instances(`${name} Rail ${r}`,cube,metal,rows);
+    }
+    const end=start+sweep;
+    floor(part(`${name} Upper Landing`,stone,end,38.4,0,y+9-.15,5.1,.30,3));
+    if(y>0) floor(part(`${name} Lower Landing`,stone,start,38.4,0,y-.15,5.1,.30,3));
+  }
+  ramp('East Promenade Ramp',-1.28,0);
+  ramp('West Promenade Ramp',Math.PI-1.28,9);
+
+  const roofShape=new T.Shape();roofShape.absarc(0,0,48,0,tau,false);
+  const aperture=new T.Path();aperture.absellipse(0,0,35,28,0,tau,true);roofShape.holes.push(aperture);
+  const roofMat=wall.clone();roofMat.side=T.DoubleSide;
+  const roof=mesh('Atrium Roof With Oval Aperture',new T.ShapeGeometry(roofShape,96),roofMat,0,36,0);roof.rotation.x=-Math.PI/2;
+  const glazing=mesh('Oval Skylight Glazing',new T.CircleGeometry(1,96),glass,0,36.07,0);glazing.rotation.x=-Math.PI/2;glazing.scale.set(35,28,1);
+  const rim=ring('Oval Skylight Perimeter',35,.14,36.13,metal);rim.scale.y=.8;
+  const mullions=[];
+  for(let i=0;i<32;i++) {
+    const a=i*tau/32,x=35*Math.cos(a),z=28*Math.sin(a);
+    mullions.push([x/2,36.15,z/2,Math.hypot(x,z),.12,.09,-Math.atan2(z,x)]);
+  }
+  instances('Skylight Radial Satin Mullions',cube,wall,mullions);
+  const innerMullion=ring('Skylight Inner Oval Mullion',17.5,.075,36.15,wall);innerMullion.scale.y=.8;
+  const veilColors=[0xffefd1,0xffde9b,0xeab675];
+  for(let i=0;i<14;i++) {
+    const a=i*tau/14+.17,r=12+(i*7%17),h=18+(i*5%9),w=3+(i%5)*.5;
+    const [x,z]=at(a,r,0), g=new T.PlaneGeometry(w,h);g.translate(0,-h/2,0);
+    const m=mesh(`Hanging Veil ${String(i+1).padStart(2,'0')}`,g,new T.MeshStandardMaterial({color:veilColors[i%3],roughness:.9,opacity:.18+(i%5)*.03,transparent:true,side:T.DoubleSide,depthWrite:false}),x,35.89,z);
+    m.rotation.y=-a+.42; veils.push(m);
+  }
+
+  entries.forEach(([name,degrees,ids,color],i)=>{
+    const a=degrees*Math.PI/180, label=name.toUpperCase(), mat=new T.MeshStandardMaterial({color,roughness:.6});
+    const [cx,cz]=at(a,92,0), wing={name,angle:degrees,centre:[cx,0,cz],slots:[]};data.wings.push(wing);
+    floor(part(`${name} Hall Stone Floor`,stone,a,92,0,-.13,44,.26,36));
+    floor(part(`${name} Approach Stone Floor`,stone,a,58.97,0,-.13,22.06,.26,14));
+    for(const side of [-1,1]) {
+      part(`${name} Corridor Wall ${side}`,wall,a,59,side*7.25,5,22,.0+10,.50,true);
+      part(`${name} Corridor Light ${side}`,glow,a,59,side*6.78,.047,21.8,.034,.055);
+      part(`${name} Portal Pier ${side}`,mat,a,70,side*12.6,8,.55,16,11.17,true);
+      part(`${name} Hall Side ${side}`,mat,a,92,side*18,8,40,16,.6,true);
+      for(const end of [-1,1]) {
+        const [x,z]=at(a,92+end*21,side*17);
+        box(`${name} Soft Corner ${side} ${end}`,mat,x,8,z,3.08,16,.62,-a+side*end*Math.PI/4,true);
+      }
+      part(`${name} Ceiling Wing ${side}`,wall,a,92,side*10,16.15,44,.3,15.9);
+    }
+    part(`${name} Corridor Ceiling`,wall,a,59,0,10.16,22,.32,14.95);
+    part(`${name} Portal Lintel`,mat,a,70,0,13,.58,6,14.03,true);
+    part(`${name} Far Wall`,mat,a,114,0,8,.56,16,32.4,true);
+    part(`${name} Linear Skylight`,glass,a,92,0,16.15,43.9,.12,4.05);
+    part(`${name} Skylight Edge A`,glow,a,92,-2.03,15.92,43.6,.058,.055);
+    part(`${name} Skylight Edge B`,glow,a,92,2.03,15.92,43.6,.058,.055);
+    sign(`${name} Entry Sign`,label,a,69.65,11.4,12);
+    const slots=ids.split(' ');
+    slots.forEach((ex,k)=>{
+      const offset=slots.length===3?(k-1)*12:slots.length===2?(k===0?-9:9):0;
+      const [x,z]=at(a,92,offset);wing.slots.push({ex,pos:[x,0,z]});
+      floor(mesh(`PLINTH_EX${ex}`,new T.CylinderGeometry(3.5,3.5,.4,48),stone,x,.2,z));
+    });
+    const accent=new T.PointLight([0xfffaf3,0xdedaf0,0xffffff,0xffd5a8,0xd5edff,0xffd7a8][i],[470,220,560,360,420,270][i],31,2);
+    accent.name=`${name} Ambient Accent`;accent.position.set(cx,11,cz);scene.add(accent);
+    if(i===5 || i===4) {
+      const rows=[];
+      for(const s of [-1,1]) for(let k=0;k<10;k++) for(let j=0;j<4;j++) {
+        const [x,z]=at(a,74+4*k,s*17.61);
+        rows.push([x,1.9+j*3.3,z, i===5?3.78:3.1,i===5?3.1:.035,.12,-a]);
+      }
+      instances(`${name} ${i===5?'Drawer Grid Relief':'Graphic Linework'}`,cube,new T.MeshStandardMaterial({color:i===5?0xa89d91:0x93a6ae,roughness:.7}),rows);
+    }
+    if(i===3) {
+      const resin=frost.clone();resin.color.setHex(0xf4b278);resin.opacity=.38;
+      for(let k=0;k<4;k++) part(`Identity Resin Panel ${k+1}`,resin,a,80+8*k,k%2?17.48:-17.48,6.7,6.5,11,.23);
+    }
+    if(i===0) for(let k=0;k<5;k++) {
+      const panel=part(`Floating Evidence Ceiling Panel ${k+1}`,frost,a,78+7*k,(k%3-1)*6,12.5+k%2,4.6,.13,7.2);panel.rotation.z=.09*(k-2);
+    }
+    if(i===1) {
+      const haze=new T.MeshBasicMaterial({color:0xdcd6d3,transparent:true,opacity:.042,depthWrite:false,side:T.DoubleSide});
+      for(let k=0;k<3;k++) part(`Weather High Haze Layer ${k+1}`,haze,a,92,0,8.1+k*1.6,35,.025,29);
+    }
+  });
+
+  const south=1.5*Math.PI;
+  floor(part('Entrance Stone Floor',stone,south,63.98,0,-.13,32.04,.26,18));
+  part('Entrance Ceiling',wall,south,64,0,14.16,32,.32,18.7);
+  for(const s of [-1,1]) {
+    part(`Entrance Side Wall ${s}`,wall,south,64,s*9.26,7,32,14,.52,true);
+    part(`Entrance Warm Floor Seam ${s}`,glow,south,64,s*8.72,.046,31.8,.031,.06);
+    part(`Entrance Facade Glass ${s}`,glass,south,80,s*5.6,6.99,.11,13.98,6.8,true);
+    for(let k=0;k<4;k++) part(`Entrance Facade Mullion ${s} ${k}`,metal,south,80.09,s*(2.2+k*2.26),7,.26,14,.11);
+  }
+  part('Entrance Glazed Transom',glass,south,80,0,9.98,.11,8.02,4.39,true);
+  part('Entrance Transom Beam',metal,south,80,0,5.94,.28,.13,4.41,true);
+  part('Entrance Inner Lintel',wall,south,48,0,12,.55,4,18);
+  sign('Museum Title Plate','THE HUMAN CONDITION · Museum of the Recorded Human',south,48.32,11.55,16.8);
+  window.MUSEUM=data;
+  return {floors,tick};
+})();
+
+window.__M3D_EDITOR__ = { scene, camera, renderer, controls, ready: false, invalidate() { renderer.render(scene, camera); } };
+
+const GalleryRingV2 = (() => {
+  const T = THREE, world = window.__M3D_EDITOR__.scene, museum = window.MUSEUM;
+  const deg = Math.PI / 180;
+  const wings = ['Archive Vault', 'Machine Archive', 'Identity Chamber', 'Reconstruction Lab', 'Weather Chamber', 'Floating Evidence'].map(name => museum.wings.find(wing => wing.name === name));
+  const stone = new T.MeshStandardMaterial({color:0xc9c7c3,roughness:.35});
+  const satin = new T.MeshStandardMaterial({color:0xf1e9dd,roughness:.6});
+  const champagne = new T.MeshStandardMaterial({color:0xcdb28a,metalness:.18,roughness:.35});
+  const glass = new T.MeshStandardMaterial({color:0xdcebed,roughness:.08,transparent:true,opacity:.25,depthWrite:false,side:T.DoubleSide});
+  const skylight = new T.MeshStandardMaterial({color:0xf4f6f1,roughness:.24,emissive:0xe9f3ff,emissiveIntensity:.65,side:T.DoubleSide});
+  const warm = new T.MeshStandardMaterial({color:0xffe2ae,roughness:.43,emissive:0xffc37b,emissiveIntensity:.8});
+  const guide = new T.MeshStandardMaterial({color:0xffcc76,roughness:.5,emissive:0xe6a33b,emissiveIntensity:.65,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1,side:T.DoubleSide});
+  const unit = new T.BoxGeometry(1,1,1), routeNodes = [], fixtures = [], arrows = [];
+
+  function polar(a,r,t=0) { return [r*Math.cos(a)-t*Math.sin(a),r*Math.sin(a)+t*Math.cos(a)]; }
+  function mesh(name,geometry,material) {
+    const object = new T.Mesh(geometry,material); object.name = `GalleryRingV2 · ${name}`; world.add(object); return object;
+  }
+  function collision(object, kind) {
+    object.userData.__m3d_phys = {collider:kind};
+    if (kind === 'box') object.userData.__m3d_walk_collision = 'wall';
+    return object;
+  }
+  function box(name,material,x,y,z,w,h,d,yaw) {
+    const object = mesh(name,unit,material); object.position.set(x,y,z); object.scale.set(w,h,d); object.rotation.y = yaw; return object;
+  }
+  function beam(name,material,p,q,y,h,depth) {
+    const dx=q[0]-p[0], dz=q[1]-p[1];
+    return box(name,material,(p[0]+q[0])/2,y,(p[1]+q[1])/2,Math.hypot(dx,dz),h,depth,-Math.atan2(dz,dx));
+  }
+  function geometry(vertices,indices) {
+    const g = new T.BufferGeometry(); g.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+    g.setIndex(indices); g.computeVertexNormals(); return g;
+  }
+  function strip(name,material,sections,y,down=false) {
+    const vertices=[], indices=[];
+    for (let i=0;i<sections.length;i++) {
+      for (const [x,z] of sections[i]) vertices.push(x,y,z);
+      if (i) {
+        const j=2*(i-1);
+        indices.push(...(down ? [j,j+1,j+2,j+1,j+3,j+2] : [j,j+2,j+1,j+1,j+2,j+3]));
+      }
+    }
+    return mesh(name,geometry(vertices,indices),material);
+  }
+  function instances(name,material,rows) {
+    const object = new T.InstancedMesh(unit,material,rows.length), temp = new T.Object3D();
+    object.name = `GalleryRingV2 · ${name}`;
+    rows.forEach(([x,y,z,w,h,d,yaw],i) => {
+      temp.position.set(x,y,z); temp.scale.set(w,h,d); temp.rotation.y=yaw; temp.updateMatrix(); object.setMatrixAt(i,temp.matrix);
+    });
+    object.instanceMatrix.needsUpdate=true; object.computeBoundingSphere(); world.add(object);
+  }
+  function portal(wing,side,next) {
+    const a=wing.angle*deg, name=`${wing.name} to ${next.name}`;
+    const original=world.getObjectByName(`${wing.name} Hall Side ${side}`);
+    if (!original) return;
+    const material=original.material;
+    original.visible=false; delete original.userData.__m3d_phys; original.userData.__m3d_walk_collision=false;
+    function part(label,mat,r,y,w,h,d,t=side*18) {
+      const [x,z]=polar(a,r,t); return box(`${name} ${label}`,mat,x,y,z,w,h,d,-a);
+    }
+    // Extend the returns to the original floor limits, behind the corner pieces.
+    const inner=collision(part('Inner Wall Return',material,77.5,8,15,16,.6),'box');
+    const outer=collision(part('Outer Wall Return',material,106.5,8,15,16,.6),'box');
+    const lintel=collision(part('Doorway Lintel',material,92,13,14,6,.6),'box');
+    const innerFrame=part('Inner Champagne Jamb',champagne,84.94,5,.12,10,.72);
+    const outerFrame=part('Outer Champagne Jamb',champagne,99.06,5,.12,10,.72);
+    const header=part('Champagne Header',champagne,92,10.065,14.24,.13,.72);
+    const c=document.createElement('canvas'); c.width=1024; c.height=128;
+    const ctx=c.getContext('2d'); ctx.fillStyle='#ede3d4'; ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='#453927'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='49px Georgia';
+    ctx.fillText(`→ ${next.name.toUpperCase()}`,512,66,974);
+    const tex=new T.CanvasTexture(c); tex.colorSpace=T.SRGBColorSpace;
+    const sign=mesh(`${name} Direction Sign`,new T.PlaneGeometry(6.4,.8),new T.MeshBasicMaterial({map:tex}));
+    const [x,z]=polar(a,92,side*17.66); sign.position.set(x,10.75,z); sign.rotation.y=-a+(side===1?Math.PI:0);
+  }
+  function gallery(from,to) {
+    const a=from.angle*deg, b=(to.angle>from.angle?to.angle-360:to.angle)*deg;
+    const name=`${from.name} — ${to.name}`, north=from.name==='Identity Chamber';
+    const lead=Math.atan2(18,92), start=a-lead, end=b+lead;
+    const count=Math.ceil((start-end)/(3*deg));
+    function point(f,r) {
+      // Match the rectangular hall thresholds exactly, then blend to the circular band.
+      const angle=T.MathUtils.lerp(start,end,f), center=polar(angle,r);
+      const atStart=polar(a,r,-18), atEnd=polar(b,r,18);
+      const refStart=polar(start,r), refEnd=polar(end,r);
+      const taper=Math.min(.24,2/count), u=Math.max(0,1-f/taper), v=Math.max(0,1-(1-f)/taper);
+      return [center[0]+(atStart[0]-refStart[0])*u+(atEnd[0]-refEnd[0])*v,center[1]+(atStart[1]-refStart[1])*u+(atEnd[1]-refEnd[1])*v];
+    }
+    const samples=Array.from({length:count+1},(_,i)=>i/count);
+    const band=(lo,hi)=>samples.map(f=>[point(f,lo),point(f,hi)]);
+    const floor=collision(strip(`${name} Stone Floor`,stone,band(85,99),0),'mesh');
+    const innerCeiling=strip(`${name} Inner Ceiling`,satin,band(85,90.65),10,true);
+    const outerCeiling=strip(`${name} Outer Ceiling`,satin,band(93.35,99),10,true);
+    const glazing=strip(`${name} Continuous Skylight`,skylight,band(90.65,93.35),10,true);
+    const innerLine=strip(`${name} Inner Floor Light`,warm,band(85.34,85.41),.032);
+    const outerLine=strip(`${name} Outer Floor Light`,warm,band(98.59,98.66),.032);
+    const windowSections=[];
+    for (let i=0;i<count;i++) {
+      const f=samples[i], g=samples[i+1], label=`${name} Segment ${i+1}`;
+      const inner=collision(beam(`${label} Inner Wall`,satin,point(f,84.82),point(g,84.82),5,10,.38),'box');
+      const p=point(f,99.18),q=point(g,99.18);
+      if (north && f>=.18 && g<=.82) {
+        const sill=collision(beam(`${label} Window Sill`,satin,p,q,.66,1.32,.38),'box');
+        const head=collision(beam(`${label} Window Header`,satin,p,q,9.19,1.62,.38),'box');
+        const barrier=collision(beam(`${label} Window Collision`,new T.MeshBasicMaterial({visible:false}),p,q,4.85,7.04,.25),'box');
+        if (!windowSections.length) windowSections.push([p,p]);
+        windowSections.push([q,q]);
+        const mullion=box(`${label} Satin Mullion`,champagne,p[0],4.85,p[1],.065,7.06,.15,-Math.atan2(q[1]-p[1],q[0]-p[0]));
+      } else {
+        const outer=collision(beam(`${label} Outer Wall`,satin,p,q,5,10,.38),'box');
+      }
+    }
+    if (windowSections.length) {
+      const vertices=[], indices=[];
+      windowSections.forEach(([[x,z]],i)=>{
+        vertices.push(x,1.32,z,x,8.38,z);
+        if(i){const j=2*(i-1);indices.push(j,j+1,j+2,j+1,j+3,j+2);}
+      });
+      const windowBand=mesh(`${name} Panoramic Window Band`,geometry(vertices,indices),glass);
+      const [p]=windowSections.at(-1), [q]=windowSections.at(-2);
+      const endMullion=box(`${name} Window End Mullion`,champagne,p[0],4.85,p[1],.065,7.06,.15,-Math.atan2(p[1]-q[1],p[0]-q[0]));
+    }
+    const length=(start-end)*85;
+    for(let d=6;d<length;d+=12) {
+      const f=d/length, i=Math.min(count-1,Math.floor(f*count)), t=f*count-i;
+      const p=point(samples[i],84.82),q=point(samples[i+1],84.82),dx=q[0]-p[0],dz=q[1]-p[1],len=Math.hypot(dx,dz);
+      fixtures.push([p[0]+dx*t-dz/len*.196,2.5,p[1]+dz*t+dx/len*.196,.12,1.3,.018,-Math.atan2(dz,dx)]);
+    }
+    if(north) {
+      const benchMat=new T.MeshStandardMaterial({color:0xc6a77e,roughness:.66,side:T.DoubleSide});
+      for(const f of [.32,.5,.68]) {
+        const index=Math.round(f*100), u=f-.026, v=f+.026;
+        const sections=Array.from({length:13},(_,i)=>{const t=T.MathUtils.lerp(u,v,i/12);return [point(t,96.15),point(t,96.9)];});
+        const vertices=[], indices=[];
+        for(let i=0;i<sections.length;i++) {
+          const [p,q]=sections[i]; vertices.push(p[0],.36,p[1],q[0],.36,q[1],p[0],.46,p[1],q[0],.46,q[1]);
+          if(i){const j=4*(i-1);indices.push(j,j+4,j+2,j+2,j+4,j+6,j+1,j+3,j+5,j+3,j+7,j+5,j+2,j+6,j+3,j+3,j+6,j+7,j,j+1,j+4,j+1,j+5,j+4);}
+        }
+        const k=vertices.length/3-4; indices.push(0,2,1,1,2,3,k,k+1,k+2,k+1,k+3,k+2);
+        const seat=mesh(`North Curved Bench ${index} Seat`,geometry(vertices,indices),benchMat);
+        const [lx,lz]=point(f-.017,96.53), [rx,rz]=point(f+.017,96.53);
+        const left=box(`North Curved Bench ${index} Left Support`,satin,lx,.18,lz,.53,.36,.38,-T.MathUtils.lerp(start,end,f-.017));
+        const right=box(`North Curved Bench ${index} Right Support`,satin,rx,.18,rz,.53,.36,.38,-T.MathUtils.lerp(start,end,f+.017));
+      }
+    }
+    for (const f of samples) routeNodes.push(point(f,92));
+  }
+  function atriumArc(from,to) {
+    const count=Math.ceil(Math.abs(to-from)/3);
+    for(let i=1;i<=count;i++) routeNodes.push(polar(T.MathUtils.lerp(from,to,i/count)*deg,30));
+  }
+  function guideRibbon() {
+    const half=.075;
+    const sections=routeNodes.map(([x,z],i)=>{
+      const p=routeNodes[Math.max(0,i-1)],q=routeNodes[Math.min(i+1,routeNodes.length-1)];
+      const ax=x-p[0],az=z-p[1],bx=q[0]-x,bz=q[1]-z;
+      const la=Math.hypot(ax,az),lb=Math.hypot(bx,bz);
+      const nx=la ? -az/la : -bz/lb,nz=la ? ax/la : bx/lb;
+      const mx=lb ? -bz/lb : nx,mz=lb ? bx/lb : nz;
+      const len=Math.hypot(nx+mx,nz+mz), ux=(nx+mx)/len,uz=(nz+mz)/len;
+      const width=half/Math.max(.5,ux*nx+uz*nz);
+      return [[x+ux*width,z+uz*width],[x-ux*width,z-uz*width]];
+    });
+    const line=strip('Continuous Visitor Guide',guide,sections,.03);
+    let travelled=0,nextArrow=3;
+    const route=[routeNodes[0].slice()];
+    for(let i=1;i<routeNodes.length;i++) {
+      const [x,z]=routeNodes[i-1], [qx,qz]=routeNodes[i],dx=qx-x,dz=qz-z,len=Math.hypot(dx,dz);
+      const steps=Math.ceil(len/6);
+      for(let j=1;j<=steps;j++) route.push([x+dx*j/steps,z+dz*j/steps]);
+      while(nextArrow<travelled+len) {
+        const t=(nextArrow-travelled)/len, fx=dx/len,fz=dz/len, px=x+t*dx,pz=z+t*dz;
+        for(const s of [-1,1]) {
+          const tx=-.42*fx+s*.27*fz,tz=-.42*fz-s*.27*fx;
+          arrows.push([px+tx/2,.044,pz+tz/2,Math.hypot(tx,tz),.008,.055,-Math.atan2(tz,tx)]);
+        }
+        nextArrow+=6;
+      }
+      travelled+=len;
+    }
+    instances('Visitor Direction Chevrons',guide,arrows);
+    museum.route=route;
+  }
+
+  routeNodes.push([museum.entrance[0],museum.entrance[2]],polar(270*deg,30));
+  atriumArc(270,225);
+  for(let i=0;i<wings.length;i++) {
+    const wing=wings[i]; routeNodes.push([wing.centre[0],wing.centre[2]]);
+    if(i+1<wings.length) {
+      const next=wings[i+1]; portal(wing,-1,next); portal(next,1,wing); gallery(wing,next);
+    }
+  }
+  routeNodes.push(polar(315*deg,30)); atriumArc(315,270);
+  routeNodes.push([museum.entrance[0],museum.entrance[2]]);
+  instances('Recessed Wall Lights',warm,fixtures);
+  guideRibbon();
+  return {route:museum.route};
+})();
+
+const WingInteriorsV2 = (() => {
+  const T = THREE, world = window.__M3D_EDITOR__.scene, wings = window.MUSEUM.wings;
+  const boxGeo = new T.BoxGeometry(), temp = new T.Object3D(), drift = [];
+  const stone = new T.MeshStandardMaterial({color:0xe5e0d8,roughness:.43});
+  const wood = new T.MeshStandardMaterial({color:0x927255,roughness:.64});
+  const cream = new T.MeshStandardMaterial({color:0xd9cbbb,roughness:.48,metalness:.12});
+  const trim = new T.MeshStandardMaterial({color:0xc5aa82,roughness:.36,metalness:.19});
+  const dark = new T.MeshStandardMaterial({color:0x373030,roughness:.78,side:T.DoubleSide});
+  const clear = new T.MeshStandardMaterial({color:0xd9ecf1,roughness:.19,transparent:true,opacity:.19,depthWrite:false,side:T.DoubleSide});
+  const warm = new T.MeshStandardMaterial({color:0xffe6c4,emissive:0xffbb74,emissiveIntensity:.75});
+  const ice = new T.MeshStandardMaterial({color:0xc8eaff,emissive:0x82bdff,emissiveIntensity:1.25});
+  const cloudMat = new T.MeshStandardMaterial({color:0xe8f3ff,emissive:0x6d8ba6,emissiveIntensity:.36,transparent:true,opacity:.23,depthWrite:false});
+  const cloudGeo = new T.SphereGeometry(1,14,9), rainPositions = new Float32Array(260*6), rainSpec = [];
+  const rainGeo = new T.BufferGeometry();
+  const rainAttr = new T.BufferAttribute(rainPositions,3).setUsage(T.DynamicDrawUsage);
+  const weatherRain = {speed:1, density:1, phase:0};
+  rainGeo.setAttribute('position',rainAttr);
+  const rain = new T.LineSegments(rainGeo,new T.LineBasicMaterial({color:0xaccfff,transparent:true,opacity:.29,depthWrite:false}));
+  let elapsed = 0, lastFrame = null, weatherFrame;
+
+  function frame(wing) {
+    const a = wing.angle*Math.PI/180, c = Math.cos(a), s = Math.sin(a), [x,,z] = wing.centre;
+    return {wing,a,c,s,x,z};
+  }
+  function pose(f,o,u,y,v,w=1,h=1,d=1,yaw=0) {
+    o.position.set(f.x+u*f.c-v*f.s,y,f.z+u*f.s+v*f.c);
+    o.rotation.set(0,-f.a+yaw,0); o.scale.set(w,h,d);
+  }
+  function add(f,name,o) {
+    o.name = `WingInteriorsV2 · ${f.wing.name} · ${name}`;
+    o.userData.__m3d_walk_floor = false; world.add(o); return o;
+  }
+  function mesh(f,name,geometry,material,...transform) {
+    const o = new T.Mesh(geometry,material); pose(f,o,...transform); return add(f,name,o);
+  }
+  function box(f,name,material,...transform) { return mesh(f,name,boxGeo,material,...transform); }
+  function batch(f,name,geometry,material,rows) {
+    const o = new T.InstancedMesh(geometry,material,rows.length);
+    rows.forEach((row,i)=>{pose(f,temp,...row);temp.updateMatrix();o.setMatrixAt(i,temp.matrix);});
+    o.instanceMatrix.needsUpdate=true; o.computeBoundingSphere(); return add(f,name,o);
+  }
+  function solid(o) { o.userData.__m3d_walk_collision='wall'; return o; }
+  function ring(f,name,mat,r,t,u,y,v) {
+    const o=mesh(f,name,new T.TorusGeometry(r,t,8,112),mat,u,y,v); o.rotation.x=-Math.PI/2; return o;
+  }
+  function light(f,name,color,power,r,u,y,v) {
+    const o=new T.PointLight(color,power,r,2); pose(f,o,u,y,v); return add(f,name,o);
+  }
+  function panelTexture(photo,variant=0) {
+    const c=document.createElement('canvas');c.width=256;c.height=192;
+    const g=c.getContext('2d');
+    if(photo) {
+      const sky=g.createLinearGradient(0,0,0,192);sky.addColorStop(0,variant?'#b9a8a0':'#a3bec5');sky.addColorStop(1,'#eee4cf');
+      g.fillStyle=sky;g.fillRect(0,0,256,192);g.fillStyle='#f4ead7';g.beginPath();g.arc(185,61,23,0,Math.PI*2);g.fill();
+      g.fillStyle='#71888b';g.beginPath();g.moveTo(0,131);g.lineTo(55,94);g.lineTo(120,129);g.lineTo(203,102);g.lineTo(256,136);g.lineTo(256,192);g.lineTo(0,192);g.fill();
+      if(variant) for(let i=0;i<13;i++){const x=12+i*19,y=143+(i*17%28);g.fillStyle='#54565c';g.beginPath();g.arc(x,y,3+i%3,0,Math.PI*2);g.fill();g.fillRect(x-3,y+4,7,22);}
+    } else {
+      g.fillStyle='#c4deec';g.fillRect(0,0,256,192);g.fillStyle='#587b95';g.font='12px monospace';g.fillText('RECORDED HUMAN / 2046',16,24);
+      g.fillStyle='#83aac3';for(let i=0;i<7;i++){g.fillRect(17,47+i*15,46+i*13%58,2);g.fillRect(129+i*15,150-(22+i*29%75),9,22+i*29%75);}g.fillRect(16,164,221,2);
+    }
+    const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;return t;
+  }
+  function wallSet(f) {
+    return world.children.filter(o=>o.isMesh && (o.name.startsWith(`${f.wing.name} Hall Side `)||o.name.startsWith(`${f.wing.name} Soft Corner `)||o.name===`${f.wing.name} Far Wall`|| (o.name.startsWith(`GalleryRingV2 · ${f.wing.name} to `)&&/Wall Return|Doorway Lintel/.test(o.name))));
+  }
+  function glassFrame(f,name,u,y,v,w,h,mat=clear) {
+    const pane=solid(box(f,`${name} Glass`,mat,u,y,v,w,h,.07));
+    const left=box(f,`${name} Left`,trim,u-w/2,y,v,.055,h+.11,.12);
+    const right=box(f,`${name} Right`,trim,u+w/2,y,v,.055,h+.11,.12);
+    const base=box(f,`${name} Base`,trim,u,y-h/2,v,w-.055,.055,.12);
+    const cap=box(f,`${name} Cap`,trim,u,y+h/2,v,w-.055,.055,.12);
+    return pane;
+  }
+  function archive(f) {
+    const fronts=[], pulls=[];
+    for(const side of [-1,1]) {
+      const hasDoor=!world.getObjectByName(`${f.wing.name} Hall Side ${side}`)?.visible;
+      const backing=world.getObjectByName(`${f.wing.name} Drawer Grid Relief`); if(backing) backing.visible=false;
+      for(let i=0;i<44;i++) for(let j=0;j<20;j++) {
+        const u=(i-21.5)*.9, y=.3+j*.6;
+        if(hasDoor && Math.abs(u)<7.6) continue;
+        fronts.push([u,y,side*17.58,.876,.572,.12]); pulls.push([u,y-.084,side*17.48,.21,.043,.048]);
+      }
+      for(const end of [-1,1]) {
+        const seam=box(f,`Drawer Wall Uplight ${side} ${end}`,warm,end*13.7,.072,side*17.17,11.2,.065,.10);
+        light(f,`Drawer Wash ${side} ${end}`,0xffd2a0,110,12,end*13,.53,side*16.6);
+      }
+    }
+    batch(f,'Cream Drawer Fronts',boxGeo,cream,fronts);batch(f,'Champagne Drawer Pulls',boxGeo,trim,pulls);
+    for(const s of [-1,1]) {
+      const u=s*12,v=8.4;
+      const top=solid(box(f,`Reading Table ${s}`,wood,u,.83,v,5.2,.13,1.25));
+      const left=box(f,`Reading Table ${s} Left Pedestal`,wood,u-2,.38,v,.28,.76,.93);
+      const right=box(f,`Reading Table ${s} Right Pedestal`,wood,u+2,.38,v,.28,.76,.93);
+      const first=box(f,`Archive Box ${s} A`,cream,u-1.5,1.01,v,.64,.22,.44);
+      const second=box(f,`Archive Box ${s} B`,cream,u-.73,.99,v-.13,.48,.18,.33,.12);
+      if(s<0) {
+        const pageL=box(f,'Open Book Left Leaf',stone,u+.67,.926,v,.39,.036,.48);pageL.rotation.z=.08;
+        const pageR=box(f,'Open Book Right Leaf',stone,u+1.072,.926,v,.39,.036,.48);pageR.rotation.z=-.08;
+        const spine=box(f,'Open Book Linen Spine',wood,u+.871,.911,v,.032,.025,.49);
+      } else {
+        const caseGlass=mesh(f,'Reading Table Glass Case',new T.BoxGeometry(1.33,.46,.73),clear,u+1.26,1.168,v);
+        const tray=box(f,'Reading Table Case Tray',trim,u+1.26,.921,v,1.43,.05,.83);
+      }
+    }
+    const skylight=box(f,'Archive Diffused Skylight',warm,0,15.93,0,41,.055,1.46);
+  }
+  function machine(f,screenMaterial) {
+    for(const s of [-1,1]) for(const u of [-17,-12,-8.35,8.35,12,17]) {
+      const tag=`Screen ${s} ${u}`,v=s*12.8;
+      glassFrame(f,tag,u,3,v,2.5,5.94);
+      const display=mesh(f,`${tag} Display`,new T.PlaneGeometry(2.18,1.64),screenMaterial,u,3.48,v-s*.079);
+    }
+    const end=world.getObjectByName(`${f.wing.name} Far Wall`);
+    if(end){end.visible=false;end.userData.__m3d_walk_collision=false;}
+    const curtain=solid(box(f,'Double-height Glass Curtain',clear,21.69,7.94,0,.1,15.82,32.38));
+    const members=[];
+    for(let i=0;i<13;i++) members.push([21.69,7.94,(i-6)*2.68,.2,15.84,.083]);
+    for(let i=1;i<4;i++) members.push([21.69,i*3.96,0,.22,.10,32.32]);
+    batch(f,'Curtain Wall Mullions',boxGeo,trim,members);
+    light(f,'Cool Curtain Fill',0xc6eaff,375,29,15.2,10,0);
+  }
+  function identity(f) {
+    for(const o of wallSet(f)) o.material=dark;
+    const sideDoor=s=>!world.getObjectByName(`${f.wing.name} Hall Side ${s}`)?.visible;
+    for(let i=0;i<4;i++) {
+      const angle=i*Math.PI/2, s=i===1?1:-1;
+      if(i===2 || ((i===1||i===3)&&sideDoor(s))) continue;
+      const lining=mesh(f,`Rotunda Lining ${i+1}`,new T.CylinderGeometry(17,17,12,32,1,true,Math.PI/2-angle-.51,1.02),dark,0,6,0); lining.userData.__m3d_walk_collision=false;
+    }
+    const ceiling=mesh(f,'Lower Rotunda Ceiling',new T.CylinderGeometry(16.85,16.85,.22,96),dark,0,12.4,0);
+    const halo=ring(f,'Ceiling Halo',warm,13.7,.045,0,12.23,0);
+    for(const slot of f.wing.slots) {
+      if(slot.ex!=='001'&&slot.ex!=='006') continue;
+      const plinth=world.getObjectByName(`PLINTH_EX${slot.ex}`);
+      const [x,,z]=slot.pos, v=-(x-f.x)*f.s+(z-f.z)*f.c;
+      if(plinth){plinth.geometry=new T.CylinderGeometry(4.5,4.5,.8,64);plinth.position.y=.4;}
+      const rim=ring(f,`Plinth ${slot.ex} Amber Rim`,warm,4.525,.026,0,.65,v);
+      const spot=new T.SpotLight(0xffe3bf,670,19,.4,.63,2);pose(f,spot,0,11.95,v);
+      pose(f,spot.target,0,.8,v);add(f,`Plinth ${slot.ex} Spot Target`,spot.target);add(f,`Plinth ${slot.ex} Spotlight`,spot);
+    }
+  }
+  function lab(f,screenMaterial) {
+    for(const s of [-1,1]) for(const u of [-15,-9.8,10.3,15.5]) {
+      const v=s*(u<0?12.2:13.4),tag=`Vitrine ${s} ${u}`;
+      const base=solid(box(f,`${tag} Stone Pedestal`,stone,u,.48,v,2.72,.96,2.45));
+      const glass=box(f,`${tag} Glass Hood`,clear,u,1.97,v,2.58,1.96,2.31);
+      const cap=box(f,`${tag} Metal Cap`,trim,u,2.97,v,2.65,.043,2.38);
+      for(const a of [-1,1]) for(const b of [-1,1]) {
+        const edge=box(f,`${tag} Edge ${a} ${b}`,trim,u+a*1.29,1.97,v+b*1.155,.033,1.99,.033);
+      }
+      if((u<0)===(s<0)) {
+        const study=mesh(f,`${tag} Pale Material Study`,new T.DodecahedronGeometry(.48,0),stone,u,1.49,v,1,.91,.84,.62);study.rotation.z=.32;
+      }
+    }
+    for(const s of [-1,1]) {
+      const u=18.5,v=s*7.8;
+      const table=solid(box(f,`Lab Desk ${s}`,trim,u,.91,v,2.65,.062,1.06));
+      const legA=box(f,`Lab Desk ${s} Left Leg`,trim,u-1.14,.44,v,.074,.88,.74);
+      const legB=box(f,`Lab Desk ${s} Right Leg`,trim,u+1.14,.44,v,.074,.88,.74);
+      const keyboard=box(f,`Laptop ${s} Keyboard`,dark,u,.966,v,.49,.025,.33);
+      const back=box(f,`Laptop ${s} Screen Housing`,trim,u,1.12,v-.16,.49,.29,.026);
+      const display=mesh(f,`Laptop ${s} Display`,new T.PlaneGeometry(.45,.255),screenMaterial,u,1.12,v-.143);
+    }
+    light(f,'Neutral Research Fill',0xf5faff,290,27,0,12,0);
+  }
+  function weather(f) {
+    weatherFrame=f;
+    const blue=new T.MeshStandardMaterial({color:0x243444,roughness:.73});
+    for(const o of wallSet(f)) o.material=blue;
+    for(const s of [-1,1]) {
+      const ceiling=world.getObjectByName(`Weather Chamber Ceiling Wing ${s}`); if(ceiling) ceiling.material=blue;
+    }
+    const glow=ring(f,'Pale Blue Floor Circle',ice,12,.034,0,.07,0);
+    const puffs=[];
+    for(let i=0;i<26;i++) {
+      const a=i*2.399963,r=Math.sqrt(i/25)*8.2;
+      puffs.push([Math.cos(a)*r,10+.48*Math.sin(i*2.1),Math.sin(a)*r*.79,1.9+.9*(i%4)/3,1.08+.48*(i%5)/4,1.4+.77*(i%7)/6,i*.28]);
+    }
+    batch(f,'Soft Cloud Puffs',cloudGeo,cloudMat,puffs);
+    for(let i=0;i<260;i++) {
+      const a=i*2.399963,r=7.8*Math.sqrt((i+.5)/260);
+      rainSpec.push([r*Math.cos(a),r*Math.sin(a)*.86,(i*.61803399)%1,3.75+(i%11)*.24,.19+(i%7)*.065]);
+    }
+    rain.frustumCulled=false;add(f,'Falling Rain',rain);
+    light(f,'Blue Cloud Fill',0x8dc5ff,260,22,0,8.6,0);
+  }
+  function evidence(f) {
+    const photoA=panelTexture(true,0),photoB=panelTexture(true,1);
+    const tints=[0xe5edf0,0xf1e2d4,0xd7e5e2];
+    for(let i=0;i<15;i++) {
+      const u=-17+(i%5)*8.5, v=(Math.floor(i/5)-1)*8+(i%2?1.15:-.95), y=4.7+(i*7%15)*.48;
+      const mat=new T.MeshStandardMaterial({color:tints[i%3],map:i%3===0?(i%2?photoA:photoB):null,roughness:.59,transparent:true,opacity:i%3===0?.38:.23,depthWrite:false,side:T.DoubleSide});
+      const o=mesh(f,`Suspended Evidence ${i+1}`,new T.PlaneGeometry(2.3+(i%5)*.36,2+(i%4)*.47),mat,u,y,v,1,1,1,(i%5-2)*.23);
+      drift.push({o,x:o.position.x,y,z:o.position.z,yaw:o.rotation.y,phase:i*1.77});
+    }
+    for(const [i,u,v] of [[1,-14,-12],[2,12,-13],[3,15,12]]) {
+      glassFrame(f,`Floor Frame ${i}`,u,2.22,v,2.8,4.35);
+      const insert=mesh(f,`Floor Frame ${i} Image Leaf`,new T.PlaneGeometry(2.26,3.7),new T.MeshStandardMaterial({color:0xe7e9e4,map:i===2?photoB:photoA,roughness:.55,transparent:true,opacity:.34,depthWrite:false,side:T.DoubleSide}),u,2.23,v+.24);
+      const foot=box(f,`Floor Frame ${i} Stone Foot`,stone,u,.025,v,2.94,.05,.52);
+    }
+  }
+  function tick(now,playing) {
+    const frameDelta = lastFrame!==null && playing ? Math.min(.05,Math.max(0,(now-lastFrame)/1000)) : 0;
+    elapsed+=frameDelta;
+    if(lastFrame!==null && !playing){lastFrame=now;return;}
+    lastFrame=now;
+    for(const {o,x,y,z,yaw,phase} of drift) {
+      o.position.set(x+.23*Math.sin(elapsed*.31+phase),y+.18*Math.sin(elapsed*.25+phase),z+.2*Math.cos(elapsed*.28+phase));o.rotation.y=yaw+.07*Math.sin(elapsed*.38+phase);
+    }
+    if(weatherFrame) {
+      const {x,z,c,s}=weatherFrame;
+      weatherRain.phase = (weatherRain.phase + frameDelta * weatherRain.speed) % 88600;
+      rainGeo.setDrawRange(0,2*Math.round(rainSpec.length*weatherRain.density));
+      for(let i=0;i<rainSpec.length;i++) {
+        const [u,v,phase,speed,len]=rainSpec[i], offset=i*6;
+        const y=.08+8.86*(1-((phase+weatherRain.phase*speed/8.86)%1));
+        rainPositions[offset]=rainPositions[offset+3]=x+u*c-v*s;
+        rainPositions[offset+1]=y;rainPositions[offset+4]=Math.min(9.12,y+len);
+        rainPositions[offset+2]=rainPositions[offset+5]=z+u*s+v*c;
+      }
+      rainAttr.needsUpdate=true;
+    }
+  }
+
+  const screenMaterial=new T.MeshStandardMaterial({color:0xf2fbff,map:panelTexture(false),emissive:0xb3e1ff,emissiveIntensity:.40,roughness:.38,side:T.DoubleSide});
+  for(const wing of wings) {
+    const f=frame(wing);
+    switch(wing.name) {
+      case 'Archive Vault': archive(f); break;
+      case 'Machine Archive': machine(f,screenMaterial); break;
+      case 'Identity Chamber': identity(f); break;
+      case 'Reconstruction Lab': lab(f,screenMaterial); break;
+      case 'Weather Chamber': weather(f); break;
+      case 'Floating Evidence': evidence(f); break;
+    }
+  }
+  tick(performance.now(),false);
+  return {tick, weatherRain, cloudMat};
+})();
+
+const WingInteriorsV2b = (() => {
+  const T=THREE, world=window.__M3D_EDITOR__.scene, wings=window.MUSEUM.wings;
+  const cube=new T.BoxGeometry(), plane=new T.PlaneGeometry(), dummy=new T.Object3D(), floating=[];
+  const white=new T.MeshStandardMaterial({color:0xf1ebe1,roughness:.57});
+  const wood=new T.MeshStandardMaterial({color:0x997452,roughness:.61});
+  const trim=new T.MeshStandardMaterial({color:0xcbb18a,metalness:.18,roughness:.38});
+  const glass=new T.MeshStandardMaterial({color:0xcde6ef,transparent:true,opacity:.22,roughness:.28,depthWrite:false,side:T.DoubleSide});
+  let elapsed=0, previous=null;
+  function pose(o,f,u,y,v,w=1,h=1,d=1,yaw=0) {
+    o.position.set(f.x+u*f.c-v*f.s,y,f.z+u*f.s+v*f.c);
+    o.rotation.set(0,-f.a+yaw,0); o.scale.set(w,h,d);
+  }
+  function add(f,name,o) {
+    o.name=`WingInteriorsV2b · ${f.name} · ${name}`;
+    o.userData.__m3d_walk_floor=false; world.add(o); return o;
+  }
+  function mesh(f,name,g,m,...row) { const o=new T.Mesh(g,m);pose(o,f,...row);return add(f,name,o); }
+  function box(f,name,m,...row) { return mesh(f,name,cube,m,...row); }
+  function batch(f,name,g,m,rows) {
+    const o=new T.InstancedMesh(g,m,rows.length);
+    rows.forEach((row,i)=>{pose(dummy,f,...row);dummy.updateMatrix();o.setMatrixAt(i,dummy.matrix);});
+    o.instanceMatrix.needsUpdate=true;o.computeBoundingSphere();return add(f,name,o);
+  }
+  function hide(o) { o.visible=false; }
+  function texture(kind) {
+    const c=document.createElement('canvas');c.width=384;c.height=256;
+    const g=c.getContext('2d');
+    if(kind==='screen') {
+      g.fillStyle='#daefff';g.fillRect(0,0,384,256);g.fillStyle='#20486b';g.font='bold 18px monospace';g.fillText('MACHINE ARCHIVE',20,32);
+      g.strokeStyle='#387da7';g.lineWidth=3;g.beginPath();
+      for(let i=0;i<11;i++){const x=22+i*17,y=126-(i*11)%49-Math.sin(i*1.2)*14;if(i)g.lineTo(x,y);else g.moveTo(x,y);}g.stroke();
+      for(let i=0;i<6;i++){g.fillStyle=i%2?'#a1bfd4':'#507e9e';g.fillRect(22,150+i*13,120+i%3*23,4);}
+      for(let i=0;i<3;i++){const y=51+i*59;g.fillStyle='#91b6c9';g.fillRect(241,y,118,48);g.fillStyle='#456c82';g.beginPath();g.moveTo(241,y+48);g.lineTo(280,y+10+i*5);g.lineTo(316,y+34);g.lineTo(342,y+16);g.lineTo(359,y+48);g.fill();}
+    } else {
+      const bg=g.createLinearGradient(0,0,384,256);bg.addColorStop(0,['#9caeaa','#b4aea3','#9ba9bb','#b5a093'][kind]);bg.addColorStop(1,'#efe3d1');g.fillStyle=bg;g.fillRect(0,0,384,256);
+      g.fillStyle=['#637e7e','#625c59','#627185','#8e675b'][kind];
+      if(kind===0){g.beginPath();g.moveTo(0,175);g.lineTo(91,85);g.lineTo(160,149);g.lineTo(251,103);g.lineTo(384,169);g.lineTo(384,256);g.lineTo(0,256);g.fill();}
+      if(kind===1) for(let i=0;i<16;i++){const x=15+i*24,y=147+(i*27%48);g.beginPath();g.arc(x,y,8+i%4,0,Math.PI*2);g.fill();g.fillRect(x-7,y+9,14,52);}
+      if(kind===2) for(let i=0;i<5;i++){const x=18+i*74,y=64+(i*29%60);g.fillStyle='#627185';g.fillRect(x,y,61,256-y);g.fillStyle='#c3c7c4';for(let j=y+13;j<241;j+=22){g.fillRect(x+8,j,11,12);g.fillRect(x+33,j,11,12);}}
+      if(kind===3) for(const x of [116,267]){g.beginPath();g.ellipse(x,165,35,53,0,0,Math.PI*2);g.fill();for(let j=0;j<4;j++){g.beginPath();g.ellipse(x-24+j*16,114-(j%3)*11,7,31,(j-1.5)*.15,0,Math.PI*2);g.fill();}g.fillRect(x-19,187,39,69);}
+      for(let i=0;i<700;i++){g.fillStyle=i%2?'#ffffff18':'#30292512';g.fillRect(i*73%384,i*137%256,2,2);}
+    }
+    const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;return tex;
+  }
+  function identity(f,old) {
+    for(const o of old) {
+      if(/Plinth (001|006) Amber Rim$/.test(o.name)) { o.rotation.x=Math.PI/2;o.position.y=.812; }
+      else if(o!==undefined && /arc/i.test(o.name.split(' · ').at(-1)) && o.material?.emissiveIntensity>0) hide(o);
+    }
+    const beamMaterial=new T.MeshBasicMaterial({color:0xffcf97,transparent:true,opacity:.045,blending:T.AdditiveBlending,side:T.DoubleSide,depthWrite:false});
+    for(const slot of f.slots.filter(s=>s.ex==='001'||s.ex==='006')) {
+      const [x,,z]=slot.pos;
+      mesh(f,`Warm Plinth Beam ${slot.ex}`,new T.ConeGeometry(4.15,11.05,48,1,true),beamMaterial,(x-f.x)*f.c+(z-f.z)*f.s,6.375,-(x-f.x)*f.s+(z-f.z)*f.c);
+    }
+  }
+  function machine(f,old,screen) {
+    old.filter(o=>/ · Screen /.test(o.name)).forEach(hide);
+    const panes=[],frames=[],displays=[];
+    for(const side of [-1,1]) for(let row=0;row<2;row++) for(let i=0;i<8;i++) {
+      const u=(i<4?-1:1)*(8.15+2.2*(i%4)+row*.35), v=side*(7+row*3.25), yaw=(i%2?1:-1)*.38;
+      panes.push([u,2.79,v,2.4,5.5,1,yaw]);
+      displays.push([u-side*.035*Math.sin(yaw),2.79,v-side*.035*Math.cos(yaw),2.21,5.08,1,yaw]);
+      for(const s of [-1,1]) {
+        frames.push([u+s*1.2*Math.cos(yaw),2.79,v-s*1.2*Math.sin(yaw),.055,5.56,.085,yaw]);
+        frames.push([u,2.79+s*2.75,v,2.4,.055,.085,yaw]);
+      }
+    }
+    batch(f,'Tall Screen Glass',plane,glass,panes);batch(f,'Champagne Screen Frames',cube,trim,frames);batch(f,'Blue Dashboard Displays',plane,screen,displays);
+    const floatingDisplay=mesh(f,'Overhead Dashboard West',plane,screen,-13,7.6,0,4.6,1.4,1,.24);floatingDisplay.rotation.x=.26;
+    const floatingDisplayEast=mesh(f,'Overhead Dashboard East',plane,screen,13,8.5,0,4.6,1.4,1,-.24);floatingDisplayEast.rotation.x=.26;
+    const floatingDisplaySide=mesh(f,'Overhead Dashboard Side',plane,screen,10,7.9,10,3.8,1.2,1,.5);floatingDisplaySide.rotation.x=.23;
+  }
+  function lab(f,old,screen) {
+    old.filter(o=>/ · (Vitrine |Lab Desk |Laptop )/.test(o.name)).forEach(hide);
+    const edges=[], hood=new T.BoxGeometry(1.6,1.6,1.6);
+    const studies=[new T.DodecahedronGeometry(.35),new T.SphereGeometry(.28,16,12),new T.TetrahedronGeometry(.42),new T.CylinderGeometry(.19,.33,.5,6)];
+    for(const s of [-1,1]) for(const [i,u] of [-16,-11,8.4,12.4,16.4].entries()) {
+      const v=s*13.7, tag=`Study Vitrine ${s} ${i+1}`;
+      const base=box(f,`${tag} Pale Base`,white,u,.5,v,1.8,1,1.8);base.userData.__m3d_walk_collision='wall';
+      mesh(f,`${tag} Glass Hood`,hood,glass,u,1.83,v);
+      box(f,`${tag} Display Pad`,white,u,1.016,v,1.5,.032,1.5);
+      mesh(f,`${tag} Pale Study`,studies[i%4],white,u,1.4,v,1,1.16,.91,.3*i);
+      for(const a of [-1,1]) for(const b of [-1,1]) edges.push([u+a*.8,1.83,v+b*.8,.032,1.62,.032]);
+    }
+    batch(f,'Vitrine Champagne Edges',cube,trim,edges);
+    for(const [i,u,v] of [[1,-15,-7],[2,15,-7],[3,15,7]]) {
+      const top=box(f,`Lab Table ${i} Top`,white,u,.85,v,4.8,.10,1.12);top.userData.__m3d_walk_collision='wall';
+      box(f,`Lab Table ${i} Left Leg`,trim,u-1.9,.4,v,.09,.8,.85);
+      box(f,`Lab Table ${i} Right Leg`,trim,u+1.9,.4,v,.09,.8,.85);
+      box(f,`Lab Table ${i} Display Stand`,trim,u-.75,.99,v,.24,.18,.18);
+      mesh(f,`Lab Table ${i} Display`,plane,screen,u-.75,1.33,v,.93,.52,1);
+      box(f,`Lab Table ${i} Sample Box`,white,u+1.03,1.01,v+.12,.48,.22,.39);
+    }
+    const fillWest=new T.PointLight(0xf7fbff,220,29,2);pose(fillWest,f,-12,10.8,0);add(f,'Even Lab Fill West',fillWest);
+    const fillEast=new T.PointLight(0xf7fbff,220,29,2);pose(fillEast,f,12,10.8,0);add(f,'Even Lab Fill East',fillEast);
+  }
+  function evidence(f,old) {
+    old.filter(o=>/ · (Suspended Evidence |Floor Frame )/.test(o.name)).forEach(hide);
+    const photos=[0,1,2,3].map(texture), mats=photos.map((map,i)=>new T.MeshStandardMaterial({color:[0xe1edf0,0xf0e5db,0xe4e9e5,0xf2e5dd][i],map,roughness:.8,transparent:true,opacity:.39+i*.052,depthWrite:false,side:T.DoubleSide}));
+    for(let i=0;i<40;i++) {
+      const u=-17+(i%8)*4.85,v=(Math.floor(i/8)-2)*5.6+Math.sin(i*1.3), y=4.65+(i*17%37)*.19;
+      const o=mesh(f,`Floating Image ${i+1}`,plane,mats[i%4],u,y,v,2+(i*7%13)*.24,2+(i*11%11)*.2+(i%5)*.29,1,(i%7-3)*.21);
+      floating.push({o,x:o.position.x,y,z:o.position.z,yaw:o.rotation.y,phase:i*1.37});
+    }
+    const layers=[],uprights=[];
+    for(const side of [-1,1]) for(const u of [-15,-9.2,14]) {
+      const v=side*15.8, tag=`Layered Frame ${side} ${u}`;
+      for(const depth of [-.25,0,.25]) layers.push([u,2.16,v+depth,2.65,4.15,1]);
+      for(const end of [-1,1]) uprights.push([u+end*1.34,2.16,v,.055,4.22,.59]);
+      mesh(f,`${tag} Photo`,plane,mats[(u===14?2:u===-15?0:1)+(side===1?1:0)],u,2.16,v-side*.29,2.18,3.59,1);
+      const foot=box(f,`${tag} Stone Foot`,white,u,.047,v,2.85,.094,.78);foot.userData.__m3d_walk_collision='wall';
+    }
+    batch(f,'Floor Frame Frosted Layers',plane,glass,layers);batch(f,'Floor Frame Uprights',cube,trim,uprights);
+  }
+  function archive(f,old) {
+    old.filter(o=>/ · (Reading Table |Archive Box |Open Book Linen Spine$|Open Book (Left|Right) Leaf$|.*Bench)/.test(o.name)).forEach(hide);
+    for(const s of [-1,1]) {
+      const u=s*13,v=3.05;
+      const top=box(f,`Wood Reading Table ${s}`,wood,u,.755,v,8,.09,1.4);top.userData.__m3d_walk_collision='wall';
+      box(f,`Reading Table ${s} Left Pedestal`,wood,u-2.9,.355,v,.3,.71,1.04);
+      box(f,`Reading Table ${s} Right Pedestal`,wood,u+2.9,.355,v,.3,.71,1.04);
+      box(f,`Archive Carton ${s} A`,white,u-2.5,.925,v,.79,.25,.5);
+      box(f,`Archive Carton ${s} B`,trim,u-1.42,.895,v+.13,.52,.19,.41,.16);
+      if(s<0) {
+        const left=box(f,'Open Book Left Page',white,u+.91,.836,v,.43,.035,.52);left.rotation.z=.07;
+        const right=box(f,'Open Book Right Page',white,u+1.36,.836,v,.43,.035,.52);right.rotation.z=-.07;
+        box(f,'Open Book Spine',wood,u+1.136,.819,v,.031,.025,.54);
+      } else {
+        box(f,'Display Case Tray',trim,u+1.7,.831,v,1.55,.062,.83);
+        box(f,'Display Case Glass',glass,u+1.7,1.092,v,1.43,.42,.72);
+        box(f,'Display Case Archive Folio',white,u+1.7,.886,v,.66,.044,.42,.14);
+      }
+    }
+  }
+  function tick(now,playing) {
+    const dt=previous===null?0:Math.min(.05,Math.max(0,(now-previous)/1000));previous=now;
+    if(!playing)return;
+    elapsed+=dt;
+    for(const {o,x,y,z,yaw,phase} of floating) {
+      o.position.set(x+.24*Math.sin(elapsed*.27+phase),y+.18*Math.sin(elapsed*.21+phase),z+.22*Math.cos(elapsed*.24+phase));
+      o.rotation.y=yaw+.075*Math.sin(elapsed*.33+phase);
+    }
+  }
+  const map=texture('screen');
+  const screen=new T.MeshStandardMaterial({color:0xe9f5ff,map,emissive:0xaccfff,emissiveMap:map,emissiveIntensity:.72,roughness:.52,side:T.DoubleSide});
+  for(const wing of wings) {
+    const a=wing.angle*Math.PI/180,[x,,z]=wing.centre,f={...wing,a,x,z,c:Math.cos(a),s:Math.sin(a)};
+    const old=world.children.filter(o=>o.name.startsWith(`WingInteriorsV2 · ${wing.name} · `));
+    switch(wing.name) {
+      case 'Identity Chamber': identity(f,old);break;
+      case 'Machine Archive': machine(f,old,screen);break;
+      case 'Reconstruction Lab': lab(f,old,screen);break;
+      case 'Floating Evidence': evidence(f,old);break;
+      case 'Archive Vault': archive(f,old);break;
+    }
+  }
+  return {tick};
+})();
+
+const IdentitySculpturesV2 = (() => {
+  const T = THREE;
+  const wing = window.MUSEUM.wings.find(w => w.name === 'Identity Chamber');
+  const halo = scene.getObjectByName('WingInteriorsV2 · Identity Chamber · Ceiling Halo');
+  const amber = new T.MeshPhysicalMaterial({color:0xe8b46a,transmission:.6,roughness:.25,thickness:1,ior:1.5,emissive:0xe98a36,emissiveIntensity:.09});
+  const crystal = new T.MeshPhysicalMaterial({color:0xe1f8ff,transmission:.9,roughness:.05,thickness:.5,ior:1.45});
+  const cyan = new T.MeshStandardMaterial({color:0xb8f7ff,emissive:0x65dcff,emissiveIntensity:1.15});
+  const sphere = new T.SphereGeometry(1,24,16);
+  const latheProfile = [[0,.82],[.22,.83],[.25,.94],[.19,1.12],[.22,1.31],[.31,1.5],[.29,1.62],[.13,1.75],[0,1.76]];
+  const scanSections = [[.08,.24,.15],[.35,.22,.095],[.65,.23,.105],[.87,.25,.13],[1.08,.20,.13],[1.32,.22,.14],[1.55,.29,.16],[1.72,.17,.11],[1.86,.088,.085],[2.02,.135,.12],[2.16,.14,.125],[2.26,.087,.08]];
+  const labels = [];
+  const matrix = new T.Matrix4(), dummy = new T.Object3D();
+  const position = new T.Vector3(), scale = new T.Vector3(), rotation = new T.Quaternion();
+  let bust, body, scan, elapsed = 0, previous = null;
+
+  function mount(ex, title) {
+    const slot = wing?.slots.find(s => s.ex === ex);
+    if (!slot) return null;
+    const plinth = scene.getObjectByName(`PLINTH_EX${ex}`);
+    let top = .8;
+    if (plinth?.geometry) {
+      plinth.updateWorldMatrix(true,false);
+      const bounds = new T.Box3().setFromObject(plinth);
+      if (!bounds.isEmpty()) top = bounds.max.y;
+    }
+    const group = new T.Group();
+    group.name = `IdentitySculpturesV2 · ${ex} ${title}`;
+    group.position.set(slot.pos[0],top,slot.pos[2]);
+    scene.add(group);
+    return group;
+  }
+  function addMesh(group,name,geometry,material,x,y,z,sx=1,sy=1,sz=1) {
+    const mesh = new T.Mesh(geometry,material);
+    mesh.name = `${group.name} · ${name}`;
+    mesh.userData.__m3d_walk_floor = false;
+    mesh.position.set(x,y,z); mesh.scale.set(sx,sy,sz);
+    group.add(mesh);
+    return mesh;
+  }
+  function ellipsoid(group,name,material,x,y,z,sx,sy,sz) {
+    return addMesh(group,name,sphere,material,x,y,z,sx,sy,sz);
+  }
+  function makeHead() {
+    const parts = [];
+    function feature(source,x,y,z,sx,sy,sz,roll=0) {
+      const g = source.clone();
+      g.scale(sx,sy,sz); g.rotateZ(roll); g.translate(x,y,z);
+      parts.push(g);
+    }
+    const wedge = new T.SphereGeometry(1,8,6);
+    feature(sphere,0,0,0,.275,.35,.30);
+    feature(sphere,0,-.13,.085,.196,.18,.20);
+    feature(wedge,0,-.012,.282,.068,.102,.108);
+    feature(sphere,0,-.13,.259,.10,.033,.046);
+    for (const s of [-1,1]) {
+      feature(sphere,s*.111,.069,.259,.099,.032,.058,s*.13);
+      feature(sphere,s*.127,-.067,.236,.103,.062,.079,-s*.22);
+      feature(sphere,s*.255,-.016,-.006,.045,.084,.048,s*.11);
+    }
+    const geometry = mergeGeometries(parts);
+    for (const g of parts) g.dispose();
+    wedge.dispose();
+    return geometry;
+  }
+  function makeBust() {
+    const shoulderShape = new T.LatheGeometry([[0,0],[.78,0],[.93,.12],[1,.42],[.95,.65],[.73,.86],[.39,1.04],[0,1.11]].map(([r,y])=>new T.Vector2(r,y)),48);
+    const shoulders = addMesh(bust,'Sloping chest and shoulders',shoulderShape,amber,0,0,0,1.2,1,.57);
+    const neck = ellipsoid(bust,'Resin neck',amber,0,1.17,0,.34,.43,.32);
+    const crown = ellipsoid(bust,'Branching crown',amber,0,1.76,-.02,.43,.52,.34);
+    const headGeo = makeHead();
+    const eyeInk = new T.MeshStandardMaterial({color:0xae6c33,roughness:.5});
+    const eyeGeo = new T.TubeGeometry(new T.QuadraticBezierCurve3(new T.Vector3(-.058,.018,0),new T.Vector3(0,-.017,.007),new T.Vector3(.058,.017,0)),10,.006,5,false);
+    function head(name,x,y,z,pitch,yaw,roll) {
+      const face = addMesh(bust,name,headGeo,amber,x,y,z);
+      face.rotation.set(pitch,yaw,roll,'YXZ');
+      const leftEye = addMesh(face,'Left closed eyelid',eyeGeo,eyeInk,-.108,.029,.291);
+      const rightEye = addMesh(face,'Right closed eyelid',eyeGeo,eyeInk,.108,.029,.291);
+    }
+    head('Forward face',0,2.19,.25,0,0,0);
+    head('Left face',-.43,1.99,.04,.03,-.57,.51);
+    head('Right face',.43,2.02,.035,-.07,.65,-.49);
+    head('Upper left face',-.245,2.78,-.055,-.45,-.36,.48);
+    head('Upper right face',.25,2.76,-.075,-.31,.47,-.55);
+    const glow = new T.PointLight(0xffac58,3,2.8,2);
+    glow.name = `${bust.name} · Inner honey light`;
+    glow.position.set(0,1.56,.06); bust.add(glow);
+  }
+  function limb(name,a,b,rx,rz) {
+    position.set(...b).sub(dummy.position.set(...a));
+    const length = position.length();
+    const mesh = ellipsoid(body,name,crystal,(a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2,rx,length*.5+rx*.48,rz);
+    mesh.quaternion.setFromUnitVectors(dummy.up,position.normalize());
+  }
+  function section(y) {
+    let i = 1;
+    while (i < scanSections.length-1 && y > scanSections[i][0]) i++;
+    const [a,rx,rz] = scanSections[i-1], [b,sx,sz] = scanSections[i];
+    const f = T.MathUtils.clamp((y-a)/(b-a),0,1);
+    scale.set(T.MathUtils.lerp(rx,sx,f),T.MathUtils.lerp(rz,sz,f),1);
+  }
+  function makeLabel(text,index) {
+    const canvas = document.createElement('canvas'); canvas.width=384; canvas.height=96;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle='#122c3ce8'; ctx.fillRect(0,0,384,96);
+    ctx.strokeStyle='#9feafa'; ctx.lineWidth=3; ctx.strokeRect(3,3,378,90);
+    ctx.fillStyle='#d7faff'; ctx.font='bold 43px monospace'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(text,192,49);
+    const map = new T.CanvasTexture(canvas); map.colorSpace=T.SRGBColorSpace;
+    const label = new T.Sprite(new T.SpriteMaterial({map,transparent:true,depthWrite:false,toneMapped:false}));
+    label.name=`${body.name} · ${text}`; label.scale.set(.86,.215,1); body.add(label);
+    labels.push({label,phase:index*2*Math.PI/5,r:1.35+index*.19,y:.91+(index%3)*.52});
+  }
+  function makeBody() {
+    const torso = addMesh(body,'Lathe torso',new T.LatheGeometry(latheProfile.map(([r,y])=>new T.Vector2(r,y)),48),crystal,0,0,0,1,1,.64);
+    const pelvis = ellipsoid(body,'Pelvis',crystal,0,.92,0,.25,.19,.145);
+    const neck = ellipsoid(body,'Neck',crystal,0,1.771,0,.09,.124,.082);
+    const head = ellipsoid(body,'Head',crystal,0,2.075,0,.146,.225,.138);
+    const nose = ellipsoid(body,'Nose',crystal,0,2.057,.13,.034,.058,.038);
+    for (const s of [-1,1]) {
+      const side=s<0?'Left':'Right';
+      limb(`${side} upper arm`,[s*.248,1.55,0],[s*.36,1.24,0],.083,.085);
+      limb(`${side} forearm`,[s*.36,1.26,0],[s*.415,.98,.035],.067,.066);
+      ellipsoid(body,`${side} hand`,crystal,s*.425,.925,.04,.061,.105,.046);
+      limb(`${side} thigh`,[s*.111,.925,0],[s*.128,.53,.012],.111,.112);
+      limb(`${side} shin`,[s*.128,.55,.012],[s*.147,.13,.003],.083,.082);
+      ellipsoid(body,`${side} foot`,crystal,s*.147,.064,.068,.093,.064,.161);
+    }
+    const ringGeo = new T.TorusGeometry(1,.014,6,48);
+    const rings = new T.InstancedMesh(ringGeo,cyan,30);
+    rings.name=`${body.name} · Thirty measurement rings`;
+    rings.userData.__m3d_walk_floor=false;
+    rotation.setFromAxisAngle(new T.Vector3(1,0,0),-Math.PI/2);
+    for (let i=0;i<30;i++) {
+      const y=.08+2.18*i/29;
+      section(y); position.set(0,y,0);
+      matrix.compose(position,rotation,scale); rings.setMatrixAt(i,matrix);
+    }
+    rings.instanceMatrix.needsUpdate=true; rings.computeBoundingSphere(); body.add(rings);
+    scan = addMesh(body,'Moving scan band',new T.CylinderGeometry(1,1,.052,48,1,true),new T.MeshBasicMaterial({color:0x91efff,transparent:true,opacity:.44,blending:T.AdditiveBlending,side:T.DoubleSide,depthWrite:false}),0,.08,0);
+    ['72 bpm','7,412 steps','36.6 °C','6h 12m sleep','64 kg'].forEach(makeLabel);
+  }
+  function placeScan() {
+    const y=.08+2.18*((elapsed%6)/6);
+    section(y);
+    scan.position.y=y; scan.scale.set(scale.x+.018,1,scale.y+.018);
+    for (const {label,phase,r,y:height} of labels) {
+      const angle=phase+elapsed*.19;
+      label.position.set(Math.cos(angle)*r,height+.08*Math.sin(angle*2),Math.sin(angle)*r);
+    }
+  }
+  function tick(now,playing) {
+    const dt=previous===null?0:Math.min(.05,Math.max(0,(now-previous)/1000));
+    previous=now;
+    if (!playing) return;
+    elapsed+=dt;
+    if (bust) bust.rotation.y=.05*elapsed;
+    if (scan) placeScan();
+  }
+
+  if (halo?.isMesh) halo.rotation.set(-Math.PI/2,0,0);
+  bust=mount('001','Multiple Selves');
+  body=mount('006','The Quantified Body');
+  if (bust) makeBust();
+  if (body) { makeBody(); placeScan(); }
+  return {tick};
+})();
+
+const IdentityFixV2 = (() => {
+  const prefix = 'WingInteriorsV2 · Identity Chamber · ';
+  const bust = scene.getObjectByName('IdentitySculpturesV2 · 001 Multiple Selves');
+  const body = scene.getObjectByName('IdentitySculpturesV2 · 006 The Quantified Body');
+  const noRaycast = function() {};
+  const labels = body ? body.children.filter(o => o.isSprite) : [];
+  let labelTime = 0, previous = null;
+
+  function disableSpriteRaycasts() {
+    scene.traverse(o => { if (o.isSprite && o.raycast !== noRaycast) o.raycast = noRaycast; });
+  }
+  function fit(group, objects, height) {
+    const bounds = new THREE.Box3();
+    for (const o of objects) {
+      o.updateMatrix();
+      o.geometry.computeBoundingBox();
+      bounds.union(o.geometry.boundingBox.clone().applyMatrix4(o.matrix));
+    }
+    if (bounds.isEmpty()) return;
+    group.scale.y = height / (bounds.max.y - bounds.min.y);
+    for (const o of objects) o.position.y -= bounds.min.y;
+  }
+  function tick(now, playing) {
+    const dt = previous === null ? 0 : Math.min(.05, Math.max(0, (now - previous) / 1000));
+    previous = now;
+    if (playing) labelTime += dt;
+    labels.forEach((label, i) => {
+      const angle = i * Math.PI * 2 / labels.length + labelTime * .19;
+      const radius = 1.55 + i * .21;
+      label.position.set(radius * Math.cos(angle), (1.26 + i * .4 + .05 * Math.sin(2 * angle)) / body.scale.y, radius * Math.sin(angle));
+    });
+  }
+
+  disableSpriteRaycasts();
+  for (const name of ['Ceiling Halo', 'Plinth 001 Amber Rim', 'Plinth 006 Amber Rim']) {
+    const ring = scene.getObjectByName(prefix + name);
+    if (ring?.geometry?.type === 'TorusGeometry') {
+      ring.rotation.set(Math.PI / 2, 0, 0);
+      ring.visible = true;
+    }
+  }
+
+  if (bust) {
+    const shoulders = bust.getObjectByName(`${bust.name} · Sloping chest and shoulders`);
+    const neck = bust.getObjectByName(`${bust.name} · Resin neck`);
+    const crown = bust.getObjectByName(`${bust.name} · Branching crown`);
+    const names = ['Forward face', 'Left face', 'Right face', 'Upper left face', 'Upper right face'];
+    const poses = [[0,2.84,.24,0,0,0],[-.83,2.05,.12,.04,-.52,55],[.83,2.05,.12,.04,.52,-55],[-.56,2.57,.08,-.16,-.35,30],[.56,2.57,.08,-.16,.35,-30]];
+    const resin = shoulders.material.clone();
+    resin.emissive.setHex(0xf3a44e); resin.emissiveIntensity = .16;
+    shoulders.geometry = new THREE.LatheGeometry([[0,0],[.73,0],[.92,.19],[1,.48],[.98,.61],[.83,.75],[.56,.91],[.27,1.06],[0,1.1]].map(([r,y]) => new THREE.Vector2(r,y)), 64);
+    shoulders.scale.set(1.3,1,.45); shoulders.material = resin;
+    neck.position.set(0,1.23,0); neck.scale.set(.31,.43,.29); neck.material = resin;
+    crown.position.set(0,1.85,0); crown.scale.set(.50,.63,.34); crown.material = resin;
+    const branchGeometry = new THREE.SphereGeometry(1,24,16);
+    const branchLeft = new THREE.Mesh(branchGeometry,resin);
+    branchLeft.name = `${bust.name} · Left resin branch`; branchLeft.position.set(-.37,1.85,.015); branchLeft.scale.set(.28,.56,.27); branchLeft.rotation.z = .62;
+    const branchRight = new THREE.Mesh(branchGeometry,resin);
+    branchRight.name = `${bust.name} · Right resin branch`; branchRight.position.set(.37,1.85,.015); branchRight.scale.set(.28,.56,.27); branchRight.rotation.z = -.62;
+    const upperStem = new THREE.Mesh(branchGeometry,resin);
+    upperStem.name = `${bust.name} · Upper resin stem`; upperStem.position.set(0,2.33,.08); upperStem.scale.set(.29,.52,.27);
+    for (const branch of [branchLeft, branchRight, upperStem]) branch.userData.__m3d_walk_floor = false;
+    bust.add(branchLeft, branchRight, upperStem);
+    names.forEach((name, i) => {
+      const head = bust.getObjectByName(`${bust.name} · ${name}`);
+      const [x,y,z,pitch,yaw,roll] = poses[i];
+      head.position.set(x,y,z); head.rotation.set(pitch,yaw,THREE.MathUtils.degToRad(roll),'YXZ'); head.scale.set(1,1.05,1); head.material = resin;
+    });
+    fit(bust,bust.children.filter(o => o.isMesh),3.4);
+  }
+
+  if (body) {
+    const anatomy = body.children.filter(o => o.isMesh && o.material.isMeshPhysicalMaterial);
+    if (anatomy.length) {
+      const glass = anatomy[0].material.clone();
+      glass.emissive.setHex(0xa4edff); glass.emissiveIntensity = .15;
+      for (const part of anatomy) part.material = glass;
+      fit(body,anatomy,2.6);
+    }
+    const glow = new THREE.PointLight(0xa4edff,2.5,2.8,2);
+    glow.name = `${body.name} · Soft cyan inner glow`; glow.position.set(0,1.25,0); body.add(glow);
+  }
+
+  tick(0,false);
+  return {disableSpriteRaycasts,tick};
+})();
+
+const PendingExhibitsA = (() => {
+  const T = THREE;
+  const slots = (window.MUSEUM?.wings ?? []).flatMap(wing => wing.slots.map(slot => ({...slot, angle: wing.angle})));
+  const events = new EventTarget(), actions = new Map(), picks = [];
+  const ray = new T.Raycaster(), pointer = new T.Vector2(), local = new T.Vector3(), endpoint = new T.Vector3(), direction = new T.Vector3();
+  const up = new T.Vector3(0,1,0), tau = 2*Math.PI;
+  const stone = new T.MeshStandardMaterial({color:0xe5ded2,roughness:.78});
+  const satin = new T.MeshStandardMaterial({color:0xf6efe2,roughness:.47});
+  const trim = new T.MeshStandardMaterial({color:0xc9ab80,metalness:.18,roughness:.38});
+  const glass = new T.MeshStandardMaterial({color:0xe7f4f3,roughness:.22,transparent:true,opacity:.24,depthWrite:false});
+  const warm = new T.MeshStandardMaterial({color:0xffe8ba,emissive:0xffb45c,emissiveIntensity:.75});
+  let auction, tree, machine, previous = null, time = 0;
+
+  function mount(ex,title,offset) {
+    const slot = slots.find(s => s.ex === ex);
+    if (!slot) return null;
+    const root = new T.Group(), a = T.MathUtils.degToRad(slot.angle), [x,y,z] = slot.pos;
+    const plinth = scene.getObjectByName(`PLINTH_EX${ex}`);
+    const top = plinth ? new T.Box3().setFromObject(plinth).max.y : y;
+    root.name = `${ex} · ${title}`;
+    root.position.set(x+offset*Math.cos(a),top,z+offset*Math.sin(a));
+    root.rotation.y = -a-Math.PI/2;
+    scene.add(root);
+    return root;
+  }
+  function mesh(parent,name,geometry,material,x,y,z) {
+    const o = new T.Mesh(geometry,material);
+    o.name = `${parent.name} · ${name}`; o.position.set(x,y,z);
+    o.userData.__m3d_walk_floor = false; parent.add(o); return o;
+  }
+  function box(p,n,m,x,y,z,w,h,d) { return mesh(p,n,new T.BoxGeometry(w,h,d),m,x,y,z); }
+  function ball(p,n,m,x,y,z,w,h,d) {
+    const o=mesh(p,n,new T.SphereGeometry(1,14,10),m,x,y,z); o.scale.set(w,h,d);return o;
+  }
+  function rod(p,n,m,a,b,r1,r2=r1) {
+    const v=new T.Vector3().subVectors(b,a), c=a.clone().lerp(b,.5);
+    const o=mesh(p,n,new T.CylinderGeometry(r2,r1,v.length(),10),m,c.x,c.y,c.z);
+    o.quaternion.setFromUnitVectors(up,v.normalize());return o;
+  }
+  function surface(w,h) {
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const ctx=c.getContext('2d'), map=new T.CanvasTexture(c);map.colorSpace=T.SRGBColorSpace;
+    return {c,ctx,map};
+  }
+  function text(s,words,size=34,bg='#eee2cf',ink='#443525') {
+    const {ctx,c,map}=s;ctx.fillStyle=bg;ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle=ink;ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`600 ${size}px sans-serif`;
+    ctx.fillText(words,c.width/2,c.height/2,c.width-18);map.needsUpdate=true;
+  }
+  function panel(p,n,s,x,y,z,w,h) {
+    return mesh(p,n,new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:s.map,side:T.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1}),x,y,z);
+  }
+  function clickable(ex,object,action) { picks.push(object);actions.set(object,{ex,action}); }
+  function bars(a) {
+    const {ctx,c,map}=a.board;
+    const weights=a.pillars.map(p=>1+p.level*2+(p===a.winner?1:0));
+    const total=weights.reduce((sum,v)=>sum+v,0);
+    const shares=weights.map(v=>Math.floor(100*v/total));
+    const order=weights.map((v,i)=>i).sort((i,j)=>(100*weights[j]%total)-(100*weights[i]%total));
+    for(let i=0,n=100-shares.reduce((sum,v)=>sum+v,0);i<n;i++) shares[order[i]]++;
+    ctx.fillStyle='#342a23';ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='#fff0d7';ctx.textAlign='left';ctx.textBaseline='middle';ctx.font='600 32px sans-serif';ctx.fillText('ATTENTION AUCTION HOUSE',22,28);
+    ctx.font='25px sans-serif';
+    a.pillars.forEach((p,i)=>{
+      const y=62+i*34;ctx.fillStyle='#fff0d7';ctx.fillText(p.label,22,y+10);
+      ctx.fillStyle='#5d4c3d';ctx.fillRect(212,y,400,20);ctx.fillStyle='#efbb71';ctx.fillRect(212,y,4*shares[i],20);
+      ctx.fillStyle='#fff0d7';ctx.fillText(`${shares[i]}%`,631,y+10);
+    });map.needsUpdate=true;
+  }
+  function buildAuction(root) {
+    const a={pillars:[],winner:null,board:surface(720,280)};
+    mesh(root,'Round Stone Dais',new T.CylinderGeometry(4,4,.2,48),stone,0,.13,0);
+    box(root,'Seat',trim,0,.71,-.17,.88,.12,.75);
+    box(root,'Seat Pedestal',stone,0,.43,-.17,.37,.4,.38);
+    const pelvis=ball(root,'Seated Figure Pelvis',satin,0,.86,-.16,.34,.18,.27);
+    const torso=ball(root,'Seated Figure Torso',satin,0,1.23,-.22,.35,.43,.19);
+    const head=ball(root,'Seated Figure Head',satin,0,1.83,-.2,.21,.26,.2);
+    for(const s of [-1,1]) {
+      rod(root,`Thigh ${s}`,satin,new T.Vector3(s*.17,.87,-.13),new T.Vector3(s*.2,.77,.43),.127,.103);
+      rod(root,`Shin ${s}`,satin,new T.Vector3(s*.2,.77,.43),new T.Vector3(s*.2,.35,.45),.09,.07);
+      ball(root,`Foot ${s}`,satin,s*.2,.29,.54,.095,.06,.19);
+      rod(root,`Arm ${s}`,satin,new T.Vector3(s*.28,1.42,-.19),new T.Vector3(s*.34,1.02,.13),.083,.063);
+      rod(root,`Forearm ${s}`,satin,new T.Vector3(s*.34,1.02,.13),new T.Vector3(s*.2,.91,.4),.064,.05);
+    }
+    const beam=mesh(root,'Winning Bid Light Beam',new T.CylinderGeometry(.016,.026,1,8),new T.MeshBasicMaterial({color:0xffbd65,transparent:true,opacity:.69,depthWrite:false}),0,0,0);
+    beam.visible=false;a.beam=beam;a.head=head;
+    ['Social','Entertainment','News','Work','Ads','AI'].forEach((label,i)=>{
+      const angle=(i-2.5)*Math.PI/5, p=new T.Group();p.name=`${root.name} · ${label} Bidder`;
+      p.position.set(Math.sin(angle)*2.8,.23,Math.cos(angle)*2.8);root.add(p);
+      const column=mesh(p,'Stone Pillar',new T.CylinderGeometry(.5,.5,1.6,24),stone,0,.8,0);
+      const glow=warm.clone();
+      const cap=mesh(p,'Glowing Cap',new T.CylinderGeometry(.48,.48,.09,24),glow,0,1.645,0);
+      const labelArt=surface(384,104);text(labelArt,label,38);
+      const plate=panel(p,'Bid Label',labelArt,0,1.98,.055,1.12,.3);
+      const pillar={p,label,level:0,glow,cap};a.pillars.push(pillar);
+      const bid=()=>{pillar.level=Math.min(3,pillar.level+1);a.winner=pillar;bars(a);};
+      for(const target of [column,cap,plate]) clickable('002',target,bid);
+    });
+    const board=panel(root,'Attention Split',a.board,0,3.38,-.58,2.65,1.03);
+    const resetArt=surface(256,96);text(resetArt,'RESET',42);
+    const reset=panel(root,'Reset Plate',resetArt,0,.47,3.55,.82,.31);
+    reset.rotation.x=-.38;
+    clickable('002',reset,()=>{for(const p of a.pillars)p.level=0;a.winner=null;bars(a);});
+    bars(a);return a;
+  }
+  function motif(bg,fg,accent,variant) {
+    const s=surface(128,128), g=s.ctx;
+    g.fillStyle=bg;g.fillRect(0,0,128,128);
+    g.fillStyle=accent;g.beginPath();g.moveTo(0,119);g.lineTo(38,73+variant*3);g.lineTo(73,101-variant*2);g.lineTo(128,68+variant*3);g.lineTo(128,128);g.lineTo(0,128);g.fill();
+    g.fillStyle=fg;g.beginPath();g.ellipse(62+variant*3,43,21+variant,21-variant,variant*.17,0,tau);g.fill();
+    g.strokeStyle=fg;g.lineWidth=2;g.strokeRect(5,5,118,118);s.map.needsUpdate=true;
+    return s;
+  }
+  function buildTree(root) {
+    const b={root,leaves:[],selected:-1,current:null,until:0,captionArt:surface(384,96)};
+    const base=mesh(root,'Original Display Plinth',new T.CylinderGeometry(.79,.94,.55,32),stone,0,.305,0);
+    mesh(root,'Original Plinth Light',new T.TorusGeometry(.79,.027,8,36),warm,0,.59,0).rotation.x=Math.PI/2;
+    const original=panel(root,'Original Motif',motif('#e8d6b8','#eb9b52','#596e70',0),0,1,.83,.57,.57);
+    const originalArt=surface(384,96);text(originalArt,'ORIGINAL',45);
+    panel(root,'Original Plaque',originalArt,0,.48,.97,.69,.17);
+    b.caption=panel(root,'Selected Variant Caption',b.captionArt,0,0,0,1.65,.36); b.caption.visible=false;
+    const trunk=rod(root,'Champagne Trunk',trim,new T.Vector3(0,.58,0),new T.Vector3(.07,5.46,0),.22,.065);
+    clickable('003',trunk,()=>{b.selected=(b.selected+1)%5;});
+    const palettes=[['#e5c6b0','#bf512f','#79635e'],['#ccdee0','#e7aa4e','#497987'],['#e1d2e8','#a4558b','#684e8e'],['#dce2bf','#e9a052','#557c64'],['#eed8b6','#9c533b','#966b86']];
+    palettes.forEach((colors,i)=>{
+      const angle=i*tau/5+.24, y=1.72+i*.55, x=Math.cos(angle), z=Math.sin(angle), reach=2.25-i*.14;
+      const start=new T.Vector3(.035,y,0), elbow=new T.Vector3(x*reach*.48,y+.58,z*reach*.48), tip=new T.Vector3(x*reach,Math.min(5.79,y+1.72),z*reach);
+      const branch=rod(root,`Branch ${i+1} Base`,trim,start,elbow,.096,.068);
+      const arm=rod(root,`Branch ${i+1} Crown`,trim,elbow,tip,.068,.022);
+      for(const target of [branch,arm]) clickable('003',target,()=>{b.selected=i;});
+      for(let j=0;j<7;j++) {
+        const f=(j+1)/7, sign=j%2?-1:1, spread=(.21+.18*f)*sign;
+        const anchor=elbow.clone().lerp(tip,f), home=anchor.clone();home.x-=z*spread;home.z+=x*spread;home.y+=.11;
+        rod(root,`Twig ${i+1}-${j+1}`,trim,anchor,home,.015,.009);
+        const image=motif(...colors,j), mat=new T.MeshStandardMaterial({map:image.map,emissive:0xffd8a8,emissiveIntensity:0,side:T.DoubleSide,roughness:.75});
+        const label=`Variant ${String.fromCharCode(65+i)}-${j+1}`;
+        const o=mesh(root,label,new T.PlaneGeometry(.45,.45),mat,home.x,home.y,home.z), yaw=Math.atan2(x,z)+sign*.28;
+        o.rotation.y=yaw;const leaf={o,home,yaw,i,label};b.leaves.push(leaf);
+        clickable('003',o,()=>{
+          root.worldToLocal(local.copy(camera.position));
+          direction.set(local.x,0,local.z);
+          if(direction.lengthSq()<.01)direction.set(0,0,1);
+          direction.normalize();
+          const distance=T.MathUtils.clamp(Math.hypot(local.x,local.z)-1.65,.75,2.9);
+          b.target=direction.clone().multiplyScalar(distance);
+          b.target.y=T.MathUtils.clamp(local.y+.1,1.35,2.8);
+          b.current=leaf;b.until=time+4;text(b.captionArt,label,42);
+        });
+      }
+    });
+    return b;
+  }
+  function wheelArt(m,shuffle=false) {
+    const {ctx,c,map}=m.art, r=c.width/2;
+    const weights=m.names.map(()=>shuffle?.66+Math.random()*.69:1);
+    const total=weights.reduce((a,b)=>a+b,0);let start=-Math.PI/2-Math.PI*weights[0]/total;
+    m.centers=[];ctx.clearRect(0,0,c.width,c.height);
+    weights.forEach((w,i)=>{
+      const end=start+tau*w/total, mid=(start+end)/2;m.centers.push(mid);
+      ctx.fillStyle=m.colors[i];ctx.beginPath();ctx.moveTo(r,r);ctx.arc(r,r,r-5,start,end);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#fff0ce';ctx.lineWidth=4;ctx.stroke();
+      ctx.save();ctx.translate(r+Math.cos(mid)*r*.64,r+Math.sin(mid)*r*.64);
+      ctx.rotate(mid>Math.PI/2&&mid<Math.PI*1.5?mid+Math.PI:mid);ctx.fillStyle='#211b1a';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='bold 31px sans-serif';ctx.fillText(m.names[i],0,0,118);ctx.restore();start=end;
+    });
+    ctx.fillStyle='#ffe7b2';ctx.beginPath();ctx.arc(r,r,29,0,tau);ctx.fill();map.needsUpdate=true;
+  }
+  function buildMachine(root) {
+    const m={art:surface(512,512),screen:surface(640,120),names:['Career','Love','Learning','Money','Identity','Stability','Freedom'],colors:['#eda970','#e3949b','#acd3cf','#e5ca82','#bfacd8','#afc398','#8fbcd5'],lights:[],spin:null};
+    box(root,'Cabinet Satin Shell',satin,0,1.23,0,1.4,2.4,.86);
+    box(root,'Champagne Face Frame',trim,0,1.54,.46,1.32,1.68,.055);
+    box(root,'Inset Face',stone,0,1.54,.518,1.25,1.61,.045);
+    box(root,'Control Deck',trim,0,.88,.63,1.38,.16,.51);
+    box(root,'Lower Glass Accent',glass,0,.45,.468,1.04,.32,.05);
+    m.wheel=mesh(root,'Decision Wheel',new T.CircleGeometry(.567,64),new T.MeshBasicMaterial({map:m.art.map}),0,1.69,.579);
+    const rim=mesh(root,'Wheel Light Rim',new T.TorusGeometry(.579,.022,8,64),warm,0,1.69,.594);
+    const arrow=new T.Shape();arrow.moveTo(-.07,.075);arrow.lineTo(.07,.075);arrow.lineTo(0,-.045);arrow.closePath();
+    mesh(root,'Fixed Winning Pointer',new T.ShapeGeometry(arrow),new T.MeshBasicMaterial({color:0x832d2a,side:T.DoubleSide}),0,2.242,.632);
+    panel(root,'Suggestion Screen',m.screen,0,.982,.558,1.16,.217);
+    text(m.screen,'Awaiting your choice',45,'#29383b','#daf3df');wheelArt(m);
+    for(let i=0;i<18;i++) {
+      const side=i<9?-1:1,j=i%9;
+      const lamp=ball(root,`Edge Light ${i+1}`,warm.clone(),side*.657,1.04+j*.152,.559,.021,.022,.019);m.lights.push(lamp);
+    }
+    const spin=()=>{
+      if(m.spin)return false;
+      const i=Math.floor(Math.random()*m.names.length), from=m.wheel.rotation.z;
+      const target=m.centers[i]+Math.PI/2+(Math.random()-.5)*.23;
+      const stop=from+tau*4+T.MathUtils.euclideanModulo(target-from,tau);
+      m.spin={from,stop,start:time,duration:3.15+Math.random()*.65,i};
+      text(m.screen,'Considering your options…',43,'#29383b','#daf3df');
+    };
+    [['SPIN',0,.121,0xc34132,spin],['RE-SPIN',-.415,.071,0xa9774e,spin],['CHANGE PRIORITY',.415,.071,0x687e72,()=>{
+      if(m.spin)return false;
+      wheelArt(m,true);text(m.screen,'Priorities reshuffled',43,'#29383b','#daf3df');
+    }]].forEach(([label,x,r,color,action])=>{
+      const button=mesh(root,`${label} Button`,new T.CylinderGeometry(r,r,.082,24),new T.MeshStandardMaterial({color,roughness:.4}),x,1.031,.765);
+      const art=surface(384,96);text(art,label,53);
+      const plaque=panel(root,`${label} Legend`,art,x,.994,.887,.34,.075);plaque.rotation.x=-Math.PI/2;
+      clickable('004',button,action);clickable('004',plaque,action);
+    });
+    return m;
+  }
+  function interact(ndc,range) {
+    if(!controls.enabled)return;
+    scene.updateMatrixWorld(true);ray.setFromCamera(ndc,camera);ray.far=range;
+    for(const hit of ray.intersectObjects(picks,false)) {
+      let visible=true;for(let o=hit.object;o;o=o.parent) if(!o.visible){visible=false;break;}
+      if(!visible)continue;
+      const {ex,action}=actions.get(hit.object);
+      if(action()!==false) events.dispatchEvent(new CustomEvent('interact',{detail:{ex}}));
+      break;
+    }
+  }
+  function tick(now,playing) {
+    const dt=previous===null?0:Math.min(.05,Math.max(0,(now-previous)/1000));previous=now;
+    if(!playing)return;
+    time+=dt;
+    if(auction) {
+      const {pillars,winner,beam,head}=auction;
+      for(let i=0;i<pillars.length;i++) {
+        const p=pillars[i], leading=p===winner, muted=winner&&!leading;
+        const lift=leading?.6*p.level:muted?-.065+.12*p.level:0;
+        p.p.position.y=T.MathUtils.damp(p.p.position.y,.23+lift,6,dt);
+        p.glow.emissiveIntensity=T.MathUtils.damp(p.glow.emissiveIntensity,(leading?1.15+.5*p.level:muted?.24:.75)+.13*Math.sin(time*2+i*.8),7,dt);
+      }
+      beam.visible=!!winner;
+      if(winner){endpoint.copy(winner.p.position).add(winner.cap.position);direction.subVectors(head.position,endpoint);beam.position.copy(endpoint).lerp(head.position,.5);beam.scale.y=direction.length();beam.quaternion.setFromUnitVectors(up,direction.normalize());}
+    }
+    if(tree) {
+      const b=tree;if(b.current&&time>=b.until)b.current=null;
+      b.root.worldToLocal(local.copy(camera.position));
+      for(const leaf of b.leaves) {
+        const {o,home,yaw}=leaf, active=leaf===b.current, selected=leaf.i===b.selected, target=active?b.target:home;
+        o.position.lerp(target,1-Math.exp(-7*dt));
+        o.scale.setScalar(T.MathUtils.damp(o.scale.x,active?4:1,7,dt));
+        const facing=active?Math.atan2(local.x-o.position.x,local.z-o.position.z):yaw;
+        const sway=selected&&!active?.16*Math.sin(time*2+home.y):0;
+        o.rotation.y+=(T.MathUtils.euclideanModulo(facing+sway-o.rotation.y+Math.PI,tau)-Math.PI)*(1-Math.exp(-8*dt));
+        o.rotation.z=T.MathUtils.damp(o.rotation.z,selected&&!active?.1*Math.sin(time*2.2+home.x):0,6,dt);
+        o.material.emissiveIntensity=T.MathUtils.damp(o.material.emissiveIntensity,selected?.37:0,6,dt);
+      }
+      b.caption.visible=!!b.current;
+      if(b.current){b.caption.position.copy(b.current.o.position);b.caption.position.y+=1.06;b.caption.rotation.y=b.current.o.rotation.y;}
+    }
+    if(machine) {
+      const m=machine, spin=m.spin;
+      if(spin){
+        const t=T.MathUtils.clamp((time-spin.start)/spin.duration,0,1);
+        m.wheel.rotation.z=T.MathUtils.lerp(spin.from,spin.stop,1-(1-t)**3);
+        if(t===1){m.wheel.rotation.z=T.MathUtils.euclideanModulo(spin.stop,tau);m.spin=null;text(m.screen,`The machine suggests: ${m.names[spin.i]}`,43,'#29383b','#daf3df');}
+      }
+      m.lights.forEach((lamp,i)=>{lamp.material.emissiveIntensity=m.spin?.32+1.65*Math.max(0,Math.cos(time*13-i*.68))**5:.42;});
+    }
+  }
+
+  window.EXHIBIT_EVENTS=events;
+  for(const name of ['IdentitySculpturesV2 · 001 Multiple Selves','IdentitySculpturesV2 · 006 The Quantified Body']) {
+    scene.getObjectByName(name)?.traverse(o=>{o.visible=false;});
+  }
+  const a=mount('002','Attention Auction House',1.65);
+  const b=mount('003','Cultural Mutation Tree',1.65);
+  const m=mount('004','The Choice Machine',1.65);
+  if(a)auction=buildAuction(a);
+  if(b)tree=buildTree(b);
+  if(m)machine=buildMachine(m);
+  canvas.addEventListener('pointerdown',e=>{
+    if(e.button!==0||!controls.enabled)return;
+    const rect=canvas.getBoundingClientRect();if(!rect.width||!rect.height)return;
+    pointer.set(2*(e.clientX-rect.left)/rect.width-1,1-2*(e.clientY-rect.top)/rect.height);
+    interact(pointer,Infinity);
+  });
+  addEventListener('keydown',e=>{
+    if(e.code!=='KeyE'||e.repeat||e.target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"])'))return;
+    interact(pointer.set(0,0),6);
+  });
+  return {tick};
+})();
+
+const PendingExhibitsB = (() => {
+  const T = THREE;
+  const slots = window.MUSEUM.wings.flatMap(w => w.slots.map(s => ({...s, angle:w.angle})));
+  const events = window.EXHIBIT_EVENTS ?? (window.EXHIBIT_EVENTS = new EventTarget());
+  const picks = [], actions = new Map(), walls = [], fragments = [], found = new Set();
+  const ray = new T.Raycaster(), ndc = new T.Vector2(), local = new T.Vector3();
+  const passive = new Set();
+  const boxGeo = new T.BoxGeometry(), ballGeo = new T.SphereGeometry(1,24,16);
+  const stone = new T.MeshStandardMaterial({color:0xe6ded1,roughness:.74});
+  const ivory = new T.MeshStandardMaterial({color:0xfff4e2,roughness:.68});
+  const gold = new T.MeshStandardMaterial({color:0xc6a77a,roughness:.42,metalness:.17});
+  const lit = new T.MeshStandardMaterial({color:0xffe5b4,emissive:0xffc477,emissiveIntensity:.8});
+  const milk = new T.MeshStandardMaterial({color:0xfff8eb,emissive:0xffe6ce,emissiveIntensity:.13,roughness:.23,transparent:true,opacity:.72,depthWrite:false});
+  const feature = new T.MeshStandardMaterial({color:0x80605b,roughness:.62,transparent:true,opacity:.71});
+  const copy = [
+    ['The Multiple Selves','多重自我','Choose an identity, and watch a new face grow from the same person.','选一个身份，看看同一个人身上会长出怎样的新面孔。'],
+    ['The Attention Auction','注意力拍卖场','Choose one glowing pillar, and watch where your attention goes.','选一根发光的柱子，看看你的注意力被谁拿走了。'],
+    ['The Culture Tree','文化变异树','Touch a leaf, and find how one picture grows into many.','点一片叶子，看看一张图是怎样长出许多样子的。'],
+    ['The Choice Machine','选择机器','Press the big button, and let the machine choose for you.','按下大按钮，让机器替你选一次。'],
+    ['The Weather of Emotion','情绪的天气','Look at the cloud and the rain, and find the feeling behind “I’m fine.”','看看云和雨，找找“我没事”背后的心情。'],
+    ['The Quantified Body','被量化的身体','Choose a type of data, and see how the body is broken into parts that can be measured.','选一种数据，看看身体是怎样被拆成一个个可以测量的部分的。'],
+    ['The Face That Keeps Forming','不断成形的面孔','Press the buttons, and watch the figure grow more faces.','按下按钮，看它慢慢长出更多面孔。'],
+    ['The Algorithmic Filter','算法过滤','Look at the screens, and find which pictures the machine keeps showing you.','看看这些屏幕，找找机器一直给你看的是哪些图。'],
+    ['Collective Memory','集体记忆','Click each picture, and find the part you remembered differently.','点一点每张图，找找你记得不一样的地方。'],
+    ['The Invisible Rules','隐形规则','Walk to the exit you can see, and find the walls you cannot see.','走向你看得见的出口，找出你看不见的墙。'],
+    ['The Last Human Message','最后的人类信息','Read what the person first wrote, and follow what happens to it.','先读这个人最初写下的话，跟着看看它变成了什么。'],
+    ['The Fragile Truth','脆弱的真相','Walk forward and see what it looked like at the very beginning.','往前走，看看它最开始的样子。']
+  ];
+  let time = 0, previous = null, count = 0, revealUntil = 0, toastUntil = 0, dwell = 0, dwelling = '', shown = '', maze, glow;
+  const records = hud('div','top:12px;left:12px');
+  const leave = hud('button','top:12px;right:12px;pointer-events:auto;cursor:pointer');
+  const toast = hud('div','top:70px;left:12px');
+  const guide = hud('div','bottom:15px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);box-sizing:border-box;text-align:center');
+  const title = document.createElement('div'), chineseTitle = document.createElement('div'), english = document.createElement('div'), chinese = document.createElement('div');
+
+  function hud(tag, css) {
+    const o = document.createElement(tag);
+    o.style.cssText = 'position:fixed;z-index:10;background:#24201de6;color:#fff2db;border:1px solid #c9a77866;border-radius:7px;padding:8px 12px;font:13px/1.45 system-ui;white-space:pre-line;pointer-events:none;' + css;
+    o.hidden = true; document.body.appendChild(o); return o;
+  }
+  function mount(ex, title, onPlinth = false) {
+    const s = slots.find(o => o.ex === ex); if (!s) return null;
+    const root = new T.Group(), plinth = scene.getObjectByName(`PLINTH_EX${ex}`);
+    root.name = `${ex} · ${title}`;
+    root.rotation.y = -T.MathUtils.degToRad(s.angle) + (ex === '009' ? Math.PI : ex === '010' ? 0 : -Math.PI/2);
+    root.position.set(s.pos[0],onPlinth && plinth ? new T.Box3().setFromObject(plinth).max.y : s.pos[1],s.pos[2]);
+    if (plinth && !onPlinth) plinth.visible = false;
+    scene.add(root); return root;
+  }
+  function mesh(p,n,g,m,x,y,z,w=1,h=1,d=1) {
+    const o = new T.Mesh(g,m); o.name = `${p.name} · ${n}`; o.position.set(x,y,z); o.scale.set(w,h,d);
+    o.userData.__m3d_walk_floor = false; p.add(o); return o;
+  }
+  function box(p,n,m,x,y,z,w,h,d) { return mesh(p,n,boxGeo,m,x,y,z,w,h,d); }
+  function ball(p,n,m,x,y,z,w,h,d) { return mesh(p,n,ballGeo,m,x,y,z,w,h,d); }
+  function art(w,h) {
+    const c = document.createElement('canvas'); c.width=w; c.height=h;
+    const map = new T.CanvasTexture(c); map.colorSpace=T.SRGBColorSpace; return {c,g:c.getContext('2d'),map};
+  }
+  function plane(p,n,a,x,y,z,w,h) {
+    return mesh(p,n,new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:a.map,side:T.DoubleSide}),x,y,z);
+  }
+  function sign(p,n,text,x,y,z,w,h) {
+    const a=art(512,112); a.g.fillStyle='#ede0cb'; a.g.fillRect(0,0,512,112);
+    a.g.fillStyle='#40342b'; a.g.font='bold 44px system-ui'; a.g.textAlign='center'; a.g.textBaseline='middle'; a.g.fillText(text,256,57,480); a.map.needsUpdate=true;
+    return plane(p,n,a,x,y,z,w,h);
+  }
+  function pick(o,ex,fn) { picks.push(o); actions.set(o,{ex,fn}); }
+  function buildFace(p) {
+    const bench = box(p,'Bench seat',stone,-1.57,.46,-.06,1.18,.12,.68);
+    const legs = box(p,'Bench pedestal',gold,-1.57,.21,-.06,.7,.42,.42);
+    const torso = ball(p,'Visitor torso',ivory,-1.57,.99,-.06,.24,.44,.29);
+    const head = ball(p,'Visitor head',ivory,-1.49,1.56,-.06,.19,.24,.18);
+    const thighNear = ball(p,'Visitor near thigh',ivory,-1.33,.59,.15,.35,.12,.115);
+    const thighFar = ball(p,'Visitor far thigh',ivory,-1.33,.59,-.27,.35,.12,.115);
+    const shinNear = ball(p,'Visitor near shin',ivory,-1.06,.32,.15,.095,.28,.103);
+    const shinFar = ball(p,'Visitor far shin',ivory,-1.06,.32,-.27,.095,.28,.103);
+    const feet = box(p,'Visitor shoes',ivory,-.97,.085,-.06,.31,.13,.51);
+    const armNear = ball(p,'Visitor near arm',ivory,-1.42,.91,.23,.22,.115,.095); armNear.rotation.z=-.48;
+    const armFar = ball(p,'Visitor far arm',ivory,-1.42,.91,-.35,.22,.115,.095); armFar.rotation.z=-.48;
+    const stem = ball(p,'Milky column body',milk,1.23,1.04,-.05,.47,1.04,.39);
+    const aiHead = ball(p,'Milky head',milk,1.19,2.16,-.05,.35,.44,.34);
+    const core = ball(p,'Pale inner core',lit,1.23,1.15,-.05,.19,.65,.19);
+    glow = new T.PointLight(0xffe6ce,4,3,2); glow.name=`${p.name} · Inner glow`; glow.position.set(1.18,1.9,-.05); p.add(glow);
+    const specs = [[-.12,.08,.075,.022],[.12,.08,.075,.022],[0,-.01,.027,.091],[0,-.14,.092,.024],[-.18,-.065,.061,.023],[.18,-.065,.061,.023],[-.29,.14,.08,.02],[.28,.17,.07,.024],[-.25,-.16,.055,.036],[.26,-.17,.105,.018],[0,.29,.081,.022],[.04,-.28,.093,.018]];
+    const face = new T.Group(); face.name=`${p.name} · Unstable facial features`; face.position.set(1.15,2.16,-.05); face.rotation.y=-.67; p.add(face);
+    specs.forEach(([x,y,w,h],i)=>{
+      const z=.31 - .15*Math.min(1,(x*x+y*y)*5) + (i>=6?.11:0);
+      const o=ball(face,`Fragment ${i+1}`,feature,x,y,z,w,h,i===2?.054:.021); o.visible=false; fragments.push({o,x,y,z});
+    });
+    ['memory','comfort','conversation','empathy'].forEach((label,i)=>{
+      const x=(i-1.5)*1.02;
+      const button=mesh(p,`${label} floor button`,new T.CylinderGeometry(.36,.39,.10,32),lit,x,.065,1.42);
+      const plate=sign(p,`${label} label`,label,x,.15,1.42,.66,.19); plate.rotation.x=-Math.PI/2;
+      const press=()=>{count=Math.min(12,count+(count===0?2:1));}; pick(button,'007',press); pick(plate,'007',press);
+    });
+    const reset=sign(p,'Reset plate','Reset',0,.49,2.25,.65,.22); reset.rotation.x=-.54; pick(reset,'007',()=>{count=0;});
+  }
+  function memoryImage(i,b) {
+    const a=art(432,224), g=a.g;
+    function oval(x,y,w,h,color) {g.fillStyle=color;g.beginPath();g.ellipse(x,y,w,h,0,0,Math.PI*2);g.fill();}
+    function line(color,width,...points) {g.strokeStyle=color;g.lineWidth=width;g.lineCap='round';g.lineJoin='round';g.beginPath();g.moveTo(...points[0]);points.slice(1).forEach(p=>g.lineTo(...p));g.stroke();}
+    g.fillStyle=b?'#dddce5':'#eadcc3';g.fillRect(0,0,432,224);g.fillStyle='#4c4039';g.font='bold 20px system-ui';g.fillText(b?'VERSION B':'VERSION A',16,28);
+    if(i===0) {
+      oval(164,124,63,45,'#e4b743');oval(118,91,32,31,'#e4b743');oval(106,66,12,21,'#c69231');oval(101,92,4,5,'#35282a');
+      line('#e4b743',18,[215,136],[257,109],[283,130],[318,91]); if(!b)line('#30282b',18,[304,106],[318,91]);
+    } else if(i===1) {
+      oval(216,181,77,24,'#4a5159');oval(216,119,46,49,'#c78f66');g.fillStyle='#343941';g.fillRect(175,50,82,45);g.fillRect(155,91,122,12);
+      oval(199,115,4,5,'#33282b');oval(235,115,4,5,'#33282b');if(!b){g.strokeStyle='#9c6f38';g.lineWidth=4;g.beginPath();g.arc(235,115,14,0,Math.PI*2);g.stroke();line('#9c6f38',2,[248,120],[250,166]);}
+    } else if(i===2) {
+      if(!b)line('#895738',14,[244,154],[286,149],[314,120],[305,92],[285,87]);
+      oval(215,152,45,44,'#895738');oval(176,92,15,16,'#895738');oval(254,92,15,16,'#895738');oval(215,89,44,43,'#895738');oval(215,99,32,26,'#d5a378');oval(203,93,4,5,'#34282a');oval(227,93,4,5,'#34282a');
+    } else if(i===3) {
+      g.fillStyle='#bd902f';g.fillRect(190,47,52,47);g.fillRect(177,99,78,55);g.fillRect(181,158,25,48);g.fillRect(154,102,18,49);g.fillRect(260,102,18,49);g.fillStyle=b?'#bd902f':'#9ca8b1';g.fillRect(226,158,25,48);oval(204,66,5,5,'#493d29');oval(228,66,5,5,'#493d29');
+    } else {
+      g.fillStyle='#fcf5e8';g.fillRect(19,65,394,101);g.beginPath();g.moveTo(67,164);g.lineTo(57,187);g.lineTo(96,164);g.fill();g.fillStyle='#514139';g.font=`bold ${i===4?25:40}px system-ui`;g.textAlign='center';g.fillText(i===4?(b?'“No, I am your father”':'“Luke, I am your father”'):(b?'56个民族':'56个星座'),216,126,376);
+    }
+    a.map.needsUpdate=true;return a;
+  }
+  function buildMemory(p) {
+    const wall=box(p,'Freestanding pale stone wall',stone,0,1.75,0,8,3.5,.28); wall.userData.__m3d_walk_collision='wall';
+    const footing=box(p,'Wall footing',stone,0,.09,0,8,.18,.72);
+    for(let i=0;i<6;i++) {
+      const x=(i%3-1)*2.55,y=i<3?2.55:1.06;
+      const frame=box(p,`Case ${i+1} champagne frame`,gold,x,y,.23,2.28,1.19,.12);
+      const a=memoryImage(i,false),b=memoryImage(i,true),view=art(432,224);
+      const image=plane(p,`Case ${i+1} image`,view,x,y,.325,2.14,1.06);
+      const caption=sign(p,`Case ${i+1} caption`,`Case ${i+1}`,x,y-.72,.2,.75,.19);
+      let mode=0;
+      const redraw=()=>{ const g=view.g;g.globalAlpha=1;g.drawImage(mode===1?b.c:a.c,0,0);if(mode===2){g.globalAlpha=.5;g.drawImage(b.c,7,-3);g.globalAlpha=1;}view.map.needsUpdate=true; };
+      redraw();const next=()=>{mode=(mode+1)%3;redraw();};pick(frame,'009',next);pick(image,'009',next);pick(caption,'009',next);
+    }
+  }
+  function buildMaze(p) {
+    // Five by five, compact enough for the six-metre footprint and the adjacent slot.
+    const half=4.12, step=half*2/5;
+    const glass=new T.MeshStandardMaterial({color:0xb7e8ff,roughness:.26,transparent:true,opacity:.06,depthWrite:false,emissive:0x79cfff,emissiveIntensity:0});
+    const gridMat=new T.LineBasicMaterial({color:0xb4e8ff,transparent:true,opacity:0,depthWrite:false});
+    const vertices=[];
+    for(const x of [-.5,-.25,0,.25,.5])vertices.push(x,-1.17,0,x,1.17,0);
+    for(const y of [-1.17,-.6,0,.6,1.17])vertices.push(-.5,y,0,.5,y,0);
+    const gridGeo=new T.BufferGeometry();gridGeo.setAttribute('position',new T.Float32BufferAttribute(vertices,3));
+    // Carve a connected spanning tree. Keep the two boundary openings in different columns.
+    const passages=new Set(), seen=new Set([2]), stack=[2];
+    while(stack.length) {
+      const a=stack.at(-1),x=a%5,z=Math.floor(a/5);
+      const next=[x<4?a+1:-1,z<4?a+5:-1,x>0?a-1:-1,z>0?a-5:-1].filter(b=>b>=0&&!seen.has(b));
+      if(!next.length){stack.pop();continue;}
+      const b=next[(a*13+7)%next.length];seen.add(b);passages.add(`${Math.min(a,b)}:${Math.max(a,b)}`);stack.push(b);
+    }
+    function pane(x,z,alongZ) {
+      const n=walls.length+1,m=glass.clone();
+      const o=box(p,`Glass wall ${n}`,m,x,1.2,z,step+.065,2.4,.042);o.rotation.y=alongZ?Math.PI/2:0;o.userData.__m3d_walk_collision='wall';
+      const grid=new T.LineSegments(gridGeo,gridMat.clone());grid.name=`${p.name} · Reveal grid ${n}`;grid.position.set(x,1.2,z);grid.rotation.y=o.rotation.y;grid.scale.x=step;grid.visible=false;p.add(grid);
+      walls.push({m,grid,x,z,alongZ,half:step/2,until:0});
+    }
+    for(let z=0;z<5;z++)for(let x=0;x<5;x++){
+      const id=z*5+x,u=-half+(x+.5)*step,v=-half+(z+.5)*step;
+      if(x===0)pane(-half,v,true);
+      if(x===4||!passages.has(`${id}:${id+1}`))pane(u+step/2,v,true);
+      if(z===0&&x!==1)pane(u,-half,false);
+      if(z===4?x!==2:!passages.has(`${id}:${id+5}`))pane(u,v+step/2,false);
+    }
+    const exit=-step;
+    const left=box(p,'Exit arch left',lit,exit-.68,1.18,-half-.04,.13,2.36,.17);
+    const right=box(p,'Exit arch right',lit,exit+.68,1.18,-half-.04,.13,2.36,.17);
+    const cap=box(p,'Exit arch header',lit,exit,2.46,-half-.04,1.49,.19,.17);
+    const exitSign=sign(p,'Exit lettering','EXIT',exit,2.46,-half+.08,.86,.18);
+    const base=box(p,'Rules pedestal',stone,1.05,.48,4.63,.42,.96,.43);
+    const button=mesh(p,'Reveal Rules button',new T.CylinderGeometry(.145,.145,.075,24),lit,1.05,1.015,4.63);
+    const plate=sign(p,'Reveal Rules label','Reveal Rules',1.05,.79,4.89,.76,.19);
+    const reveal=()=>{revealUntil=time+3;};pick(button,'010',reveal);pick(plate,'010',reveal);pick(base,'010',reveal);
+  }
+  function interact(range) {
+    if (!controls.enabled) return;
+    scene.updateMatrixWorld(true);ray.setFromCamera(ndc,camera);ray.far=range;
+    const hit=ray.intersectObjects(picks,false).find(h=>!h.object.isSprite&&h.object.visible);
+    if(!hit)return;
+    // Leave nearer installations to the existing A handler, and do not reach through solid architecture.
+    ray.far=hit.distance-.025;
+    const blockers=scene.children.filter(o=>o.isMesh&&o.visible&&!o.material.transparent&&(o.userData.__m3d_walk_collision==='wall'||o.name.includes(' Hall Side ')));
+    if(ray.far>0&&ray.intersectObjects(blockers,false).length)return;
+    const {ex,fn}=actions.get(hit.object);fn();events.dispatchEvent(new CustomEvent('interact',{detail:{ex}}));
+  }
+  function record(ex) {
+    if(found.has(ex)||!slots.some(s=>s.ex===ex))return;
+    found.add(ex);const id=String(Number(ex)).padStart(2,'0');
+    records.textContent=`Records found ${found.size} / 12\n已找回 ${found.size} / 12`;
+    toast.textContent=`Record ${id} found\n已找回第 ${id} 份记录`;toastUntil=time+2;
+  }
+  function tick(now,playing) {
+    const dt=previous===null?0:Math.min(.05,Math.max(0,(now-previous)/1000));previous=now;
+    records.hidden=leave.hidden=!playing;
+    if(!playing){guide.hidden=toast.hidden=true;dwelling='';dwell=0;return;}
+    time+=dt;
+    if(glow){glow.intensity=4+count*.64;milk.emissive.setRGB(1,.84-count*.022,.69-count*.025);milk.emissiveIntensity=.13+count*.018;}
+    fragments.forEach(({o,x,y,z},i)=>{
+      o.visible=i<count;if(!o.visible)return;
+      const a=time*(.61+i*.035)+i*1.93, drift=i<6?.025:.09;
+      o.position.set(x+Math.sin(a)*drift,y+Math.cos(a*.81)*drift,z+Math.sin(a*.73)*drift*.65);o.rotation.z=.24*Math.sin(a*.66);
+    });
+    if(maze) {
+      maze.worldToLocal(local.copy(camera.position));
+      for(const w of walls) {
+        const side=w.alongZ?local.x-w.x:local.z-w.z;
+        const beyond=Math.max(0,Math.abs(w.alongZ?local.z-w.z:local.x-w.x)-w.half);
+        const vertical=Math.max(0,local.y-2.4,-local.y);
+        if(side*side+beyond*beyond+vertical*vertical<2.25)w.until=time+1.5;
+        const until=Math.max(revealUntil,w.until), strength=until>time?Math.min(1,(until-time)/.58):0;
+        w.m.opacity=.06+.23*strength;w.m.emissiveIntensity=.66*strength;
+        w.grid.visible=strength>0;w.grid.material.opacity=.33*strength;
+      }
+    }
+    let near=null,nearD=81, passiveNear=null,passiveD=25;
+    for(const s of slots){
+      const d=(s.pos[0]-camera.position.x)**2+(s.pos[1]-(camera.position.y-1.6))**2+(s.pos[2]-camera.position.z)**2;
+      if(d<=nearD){near=s;nearD=d;}
+      if(passive.has(s.ex)&&!found.has(s.ex)&&d<=passiveD){passiveNear=s;passiveD=d;}
+    }
+    guide.hidden=!near;
+    if(near&&shown!==near.ex){shown=near.ex;const lines=copy[Number(shown)-1];title.textContent=`${shown} · ${lines[0]}`;chineseTitle.textContent=lines[1];english.textContent=lines[2];chinese.textContent=lines[3];}
+    const id=passiveNear?.ex??'';
+    if(id!==dwelling){dwelling=id;dwell=0;}else if(id){dwell+=dt;if(dwell>=2)record(id);}
+    toast.hidden=time>=toastUntil;
+  }
+
+  const face=mount('007','The Face That Keeps Forming',true);
+  const memory=mount('009','Memory Ghost Wall');
+  maze=mount('010','The Invisible Rules');
+  if(face)buildFace(face);if(memory)buildMemory(memory);if(maze)buildMaze(maze);
+  title.style.font='bold 17px Georgia, serif';chineseTitle.style.font='15px serif';guide.append(title,chineseTitle,english,chinese);
+  records.textContent='Records found 0 / 12\n已找回 0 / 12';leave.type='button';leave.textContent='Leave the museum · 离开博物馆';
+  leave.addEventListener('click',()=>{
+    if(!controls.enabled)return;
+    const ids=[...found].sort().map(ex=>String(Number(ex)).padStart(2,'0'));
+    const url='https://human-condition-archive-jie.alert-lemur-5784.chatgpt.site/'+(ids.length?'#collected-'+ids.join('-'):'');
+    try{window.top.location.href=url;}catch{window.open(url,'_blank');}
+  });
+  events.addEventListener('interact',e=>{if(controls.enabled)record(e.detail?.ex);});
+  canvas.addEventListener('pointerdown',e=>{
+    if(e.button!==0||!controls.enabled)return;
+    const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+    ndc.set(2*(e.clientX-r.left)/r.width-1,1-2*(e.clientY-r.top)/r.height);interact(Infinity);
+  });
+  addEventListener('keydown',e=>{
+    if(e.code!=='KeyE'||e.repeat||!controls.enabled||e.target?.closest?.('input,textarea,select,button,[contenteditable]:not([contenteditable="false"])'))return;
+    ndc.set(0,0);interact(6);
+  });
+  return {tick};
+})();
+
+const VisitorInteractions = (() => {
+  const names = ['The Multiple Selves|多重自我','The Attention Auction|注意力拍卖场','The Culture Tree|文化变异树','The Choice Machine|选择机器','The Weather of Emotion|情绪的天气','The Quantified Body|被量化的身体','The Face That Keeps Forming|不断成形的面孔','The Algorithmic Filter|算法过滤','Collective Memory|集体记忆','The Invisible Rules|隐形规则','The Last Human Message|最后的人类信息','The Fragile Truth|脆弱的真相'];
+  const slots = new Map(window.MUSEUM.wings.flatMap(w=>w.slots.map(s=>[s.ex,{...s,angle:w.angle*Math.PI/180}])));
+  const panel = document.createElement('details'), heading = document.createElement('summary'), menu = document.createElement('select'), content = document.createElement('div');
+  const ray = new THREE.Raycaster(), pointer = new THREE.Vector2(), target = new THREE.Vector3();
+  const evidence = 'WingInteriorsV2b · Floating Evidence · ';
+  const panes = [1,2,3,4,5].map(i=>scene.getObjectByName(evidence+'Floating Image '+i)).filter(Boolean);
+  const screens = scene.getObjectByName('WingInteriorsV2b · Machine Archive · Blue Dashboard Displays');
+  const savedMaterials = new Map(), removed = new Set(), counts = [0,0,0,0];
+  const screenColors = [0x9bdcff,0xffca91,0x9fe7ba,0xe4b7ff];
+  const metrics = ['72 bpm','7,412 steps','36.6 °C','6h 12m sleep','64 kg'];
+  const messages = [
+    ['I left the porch light on. I hope you get home safely.','我把门廊灯留着。希望你平安到家。'],
+    ['I left the porch light on because the storm worried me. Please text when you get home.','我担心暴风雨，所以留着门廊灯。到家后请发条消息。'],
+    ['Sender requests an arrival update.','发信人要求报告到达情况。']
+  ];
+  let active = '', identity = -1, metric = -1, phrase = 0, emotion = 0, intensity = 50, version = 0, compare = false;
+
+  function line(parent,en,zh) {
+    const row = document.createElement('div'); row.style.whiteSpace='pre-line'; row.textContent=en+'\n'+zh; parent.append(row); return row;
+  }
+  function button(parent,en,zh,action) {
+    const b=document.createElement('button'); b.type='button'; b.style.cssText='white-space:pre-line;margin:2px;padding:3px 6px'; b.textContent=en+'\n'+zh;
+    b.onclick=()=>{if(controls.enabled)action();}; parent.append(b); return b;
+  }
+  function emit(ex) { window.EXHIBIT_EVENTS.dispatchEvent(new CustomEvent('interact',{detail:{ex}})); }
+  function teleport(ex) {
+    const slot=slots.get(ex);
+    if(!slot) { camera.position.fromArray(window.MUSEUM.entrance); camera.quaternion.set(0,1,0,0); }
+    else {
+      const [x,,z]=slot.pos, c=Math.cos(slot.angle), s=Math.sin(slot.angle);
+      const radial=ex==='010'?0:-6.5, tangential=ex==='010'?6.2:3.2;
+      camera.position.set(x+radial*c-tangential*s,1.7,z+radial*s+tangential*c);
+      target.set(x,1.7,z); camera.lookAt(target);
+    }
+    syncWalkPose(); camera.updateMatrixWorld(true);
+  }
+  function updateIdentity() {
+    let available=0;
+    for(let i=0;i<5;i++) {
+      const group=scene.getObjectByName('IDENTITY_0'+(i+1)); if(!group)continue;
+      available++;
+      group.traverse(o=>{
+        if(!o.isMesh||!o.material) return;
+        if(!savedMaterials.has(o))savedMaterials.set(o,{original:o.material, variants:new Map()});
+        const entry=savedMaterials.get(o);
+        if(identity<0){o.material=entry.original;return;}
+        const selected=identity===i;
+        if(!entry.variants.has(selected)) {
+          const style=m=>{const copy=m.clone(); if(selected){if(copy.emissive){copy.emissive.setHex(0xffca88);copy.emissiveIntensity=.35;} }else {copy.transparent=true;copy.opacity=.23;copy.depthWrite=false;} return copy;};
+          entry.variants.set(selected,Array.isArray(entry.original)?entry.original.map(style):style(entry.original));
+        }
+        o.material=entry.variants.get(selected);
+      });
+    }
+    return available;
+  }
+  function updateMetrics() {
+    const body=scene.getObjectByName('IdentitySculpturesV2 · 006 The Quantified Body'); if(!body)return;
+    for(const label of body.children) {
+      if(!label.isSprite)continue;
+      const i=metrics.findIndex(text=>label.name.endsWith(' · '+text)); if(i<0)continue;
+      const focused=i===metric; label.visible=metric>=0;
+      label.material.opacity=focused?1:.28; label.scale.set(focused?1.3:.86,focused?.325:.215,1); label.raycast=()=>{};
+    }
+    body.visible=metric>=0;
+  }
+  function updateWeather() {
+    const t=intensity/100;
+    WingInteriorsV2.cloudMat.color.setHex([0xdcecff,0x7e8cb5,0x9b9db9,0xffe1b4][emotion]);
+    WingInteriorsV2.cloudMat.opacity=.16+.22*t;
+    WingInteriorsV2.weatherRain.speed=.45+1.8*t+.12*emotion;
+    WingInteriorsV2.weatherRain.density=.12+.88*t;
+  }
+  function updateScreens() {
+    if(!screens)return;
+    const color=new THREE.Color();
+    for(let i=0;i<screens.count;i++) {
+      const category=i%4, n=counts[category];
+      color.setHex(n?screenColors[category]:0xffffff).multiplyScalar(n?Math.min(1.65,.65+.25*n):1);
+      screens.setColorAt(i,color);
+    }
+    screens.instanceColor.needsUpdate=true;
+  }
+  function selectCategory(i) { counts[i]++; updateScreens(); emit('008'); draw(); }
+  function peel(o) { if(!o||removed.has(o))return; removed.add(o); o.visible=false; emit('012'); draw(); }
+  function reset() {
+    identity=metric=-1; phrase=emotion=version=0; intensity=50; compare=false; counts.fill(0);
+    for(const o of removed)o.visible=true; removed.clear();
+    updateIdentity(); updateMetrics(); updateWeather(); updateScreens(); draw();
+  }
+  function draw() {
+    content.replaceChildren();
+    const pair=names[Number(active)-1]?.split('|'); if(pair)line(content,...pair);
+    if(active==='001') {
+      const total=updateIdentity();
+      line(content,`${total}/5 imported statues placed.`, `已放置 ${total}/5 个导入雕像。`);
+      for(let i=0;i<5;i++) {
+        const id='IDENTITY_0'+(i+1), placed=!!scene.getObjectByName(id);
+        const b=button(content,`${identity===i?'✓ ':''}Identity ${i+1}${placed?'':' (not placed)'}`,`身份 ${i+1}${placed?'':'（尚未放置）'}`,()=>{identity=i;updateIdentity();emit('001');draw();});
+        b.disabled=!placed;
+      }
+    } else if(active==='005') {
+      line(content,'Choose a phrase and a feeling. No microphone is used.','选择一句话和一种情绪。不使用麦克风。');
+      const phrases=[['I am fine','我没事'],['I am tired','我累了'],['I want to talk','我想聊聊']];
+      phrases.forEach(([en,zh],i)=>button(content,(phrase===i?'✓ ':'')+en,zh,()=>{phrase=i;emit('005');draw();}));
+      [['Calm','平静'],['Anxious','焦虑'],['Sad','悲伤'],['Hopeful','充满希望']].forEach(([en,zh],i)=>button(content,(emotion===i?'✓ ':'')+en,zh,()=>{emotion=i;updateWeather();emit('005');draw();}));
+      const label=document.createElement('label'), slider=document.createElement('input'), value=line(label,`Intensity: ${intensity}%`,`强度：${intensity}%`);
+      slider.type='range';slider.min='0';slider.max='100';slider.value=String(intensity);
+      slider.oninput=()=>{if(!controls.enabled)return; intensity=+slider.value;value.textContent=`Intensity: ${intensity}%\n强度：${intensity}%`;updateWeather();};
+      slider.onchange=()=>{if(controls.enabled)emit('005');}; label.append(slider);content.append(label);
+    } else if(active==='006') {
+      line(content,'Simulated data — not a real person’s measurements.','模拟数据，并非真实人物的测量值。');
+      [['Heart rate','心率'],['Steps','步数'],['Temperature','体温'],['Sleep','睡眠'],['Weight','体重']].forEach(([en,zh],i)=>button(content,(metric===i?'✓ ':'')+en,zh,()=>{metric=i;updateMetrics();emit('006');draw();}));
+      if(metric>=0)line(content,metrics[metric],['每分钟 72 次','7,412 步','36.6 摄氏度','6 小时 12 分钟','64 千克'][metric]);
+    } else if(active==='008') {
+      line(content,`Diversity: ${counts.filter(Boolean).length}/4 categories`,`多样性：${counts.filter(Boolean).length}/4 类`);
+      [['News','新闻'],['Culture','文化'],['Science','科学'],['Daily life','日常生活']].forEach(([en,zh],i)=>{const b=button(content,`${en} ×${counts[i]}`,`${zh} ×${counts[i]}`,()=>selectCategory(i));b.style.borderBottom=`4px solid #${screenColors[i].toString(16)}`;});
+    } else if(active==='011') {
+      const labels=[['Original human words','人类原话'],['AI polished','人工智能润色'],['Platform summary','平台摘要']];
+      labels.forEach(([en,zh],i)=>button(content,(version===i&&!compare?'✓ ':'')+en,zh,()=>{version=i;compare=false;emit('011');draw();}));
+      button(content,'Compare versions','比较版本',()=>{compare=!compare;emit('011');draw();});
+      for(const i of compare?[0,1,2]:[version]){if(compare)line(content,...labels[i]);line(content,...messages[i]);}
+      line(content,'The AI invents a storm and a request to text. The summary drops the porch light and the wish for safety.','人工智能添加了暴风雨和发短信的请求。摘要删去了门廊灯和平安到家的祝愿。');
+    } else if(active==='012') {
+      line(content,`Layers removed: ${removed.size}/5`,`已移除图层：${removed.size}/5`);
+      panes.forEach((o,i)=>{const b=button(content,`Remove layer ${i+1}`,`移除第 ${i+1} 层`,()=>peel(o)); b.disabled=removed.has(o);});
+      if(panes.length===5&&removed.size===5) {
+        const source=scene.getObjectByName(evidence+'Floating Image 6')?.material?.map?.image;
+        if(source instanceof HTMLCanvasElement){const preview=document.createElement('canvas');preview.width=192;preview.height=128;preview.getContext('2d').drawImage(source,0,0,192,128);preview.setAttribute('aria-label','Fictional original image / 虚构原始图像');content.append(preview);}
+        line(content,'Fictional source: a procedural illustration from the existing museum, not an archival photograph.','虚构来源：博物馆现有的程序生成插画，并非档案照片。');
+      }
+    }
+  }
+  function pick(e) {
+    if(!controls.enabled)return;
+    const options=active==='008'&&screens?[screens]:active==='012'?panes.filter(o=>o.visible):[]; if(!options.length)return;
+    if(e.type==='keydown') {
+      if(e.code!=='KeyE'||e.repeat||e.target?.closest?.('input,textarea,select,button,[contenteditable]'))return;
+      pointer.set(0,0);
+    } else {
+      if(e.button!==0)return; const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;
+      pointer.set(2*(e.clientX-r.left)/r.width-1,1-2*(e.clientY-r.top)/r.height);
+    }
+    scene.updateMatrixWorld(true);ray.setFromCamera(pointer,camera);ray.far=e.type==='keydown'?6:25;
+    const hit=ray.intersectObjects(options,false)[0];if(!hit)return;
+    ray.far=hit.distance-.04;
+    if(ray.far>0&&ray.intersectObjects(scene.children.filter(o=>o.isMesh&&o.visible&&!o.material.transparent&&o.material.visible!==false&&o.userData.__m3d_walk_collision==='wall'),false).length)return;
+    if(active==='008')selectCategory(hit.instanceId%4); else peel(hit.object);
+  }
+
+  panel.style.cssText='position:fixed;z-index:11;top:82px;right:12px;width:min(310px,calc(100vw - 24px));max-height:calc(100vh - 195px);overflow:auto;box-sizing:border-box;background:#24201def;color:#fff2db;border:1px solid #c9a77888;border-radius:8px;padding:8px;font:13px/1.45 system-ui';
+  line(heading,'Visitor navigation','访客导航'); panel.append(heading);
+  menu.setAttribute('aria-label','Exhibit selector / 展品选择');menu.style.width='100%';
+  menu.add(new Option('Select an exhibit / 选择展品',''));
+  names.forEach((name,i)=>{const id=String(i+1).padStart(3,'0'); menu.add(new Option(`${id} ${name.replace('|',' / ')}`,id));});
+  panel.append(menu);
+  menu.onchange=()=>{if(!controls.enabled)return;active=menu.value;teleport(active);draw();};
+  button(panel,'Reset interactions','重置互动',reset);
+  button(panel,'Back to entrance','返回入口',()=>{active='';menu.value='';teleport('');draw();});
+  panel.append(content); document.body.append(panel); panel.hidden=!controls.enabled;
+  canvas.addEventListener('pointerdown',pick);addEventListener('keydown',pick);
+  addEventListener('m3d:edit-mode',()=>{panel.hidden=!controls.enabled;if(controls.enabled&&active==='001')draw();});
+  heading.addEventListener('click',()=>{if(controls.enabled&&active==='001')draw();});
+  return {panel};
+})();
+
+__walk.refresh();
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+const GeneratedIdentityInstallation = (() => {
+  const editor = window.__M3D_EDITOR__;
+  const url = 'https://maniengine.com/Engine/UserData/917586064susie%40gmail.com/assets/models/d17f93ae7e66e5fb743ea90eae6abbd0c347b16a9a9b229ce19ec6678deed35a.glb';
+  const names = ['IDENTITY_01','IDENTITY_02','IDENTITY_03','IDENTITY_04','IDENTITY_05'];
+  const colors = [0xffcd8a,0xf3a6b7,0xaedfff,0xcbb7f4,0xb4e6cb];
+  const labels = ['Amber · 琥珀','Rose · 玫瑰','Ice blue · 冰蓝','Lavender · 薰衣草','Jade · 浅玉'];
+  const center = new THREE.Vector3(), visitor = new THREE.Vector3(), front = new THREE.Vector3();
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  const entries = [], buttons = [];
+  let selected = -1, previous = 0, active = false, installed = false, source = null;
+  const panel = document.createElement('div');
+  panel.setAttribute('role','group'); panel.setAttribute('aria-label','Exhibit 001 · 展品 001');
+  panel.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:20;max-width:calc(100vw - 48px);padding:9px;background:#24201dec;color:white;border-radius:7px;font:13px system-ui';
+  panel.hidden = true;
+  const row = document.createElement('div'); row.hidden = true;
+  const en = document.createElement('div'), zh = document.createElement('div');
+  en.textContent = 'Five separate portraits show five identities. Choose one to bring it forward.';
+  zh.textContent = '五座独立肖像呈现五种身份。选择一座，让它凸显。';
+  row.append(en,zh);
+  const status = document.createElement('div'); status.setAttribute('role','status');
+
+  function button(parent, label, action) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+    b.style.margin = '3px'; b.addEventListener('click', action); parent.append(b); return b;
+  }
+  function nearby() {
+    return installed && Math.hypot(camera.position.x-center.x,camera.position.z-center.z) <= 10;
+  }
+  function choose(index, report = true) {
+    if (!controls.enabled || !nearby()) return;
+    selected = index;
+    entries.forEach(({materials}, i) => {
+      for (const material of materials) material.opacity = index < 0 ? .62 : i === index ? .95 : .25;
+      buttons[i].setAttribute('aria-pressed', String(i === index));
+    });
+    if (report && index >= 0) {
+      const events = window.EXHIBIT_EVENTS ?? (window.EXHIBIT_EVENTS = new EventTarget());
+      events.dispatchEvent(new CustomEvent('interact',{detail:{ex:'001',id:'001',identity:names[index]}}));
+    }
+    editor?.invalidate?.();
+  }
+  function go() {
+    if (!controls.enabled || !installed) return;
+    camera.position.copy(visitor);
+    camera.lookAt(center.x,2,center.z);
+    eu.setFromQuaternion(camera.quaternion,'YXZ'); yaw = eu.y; pitch = eu.x;
+    velY = 0; onFloor = false; look = false; last = performance.now();
+    for (const code in keys) keys[code] = false;
+  }
+  function suppressOriginal() {
+    const old = scene.getObjectByName('IdentitySculpturesV2 · 001 Multiple Selves');
+    if (old) old.visible = false;
+    const original = source?.getObjectByName(names[0]);
+    if (original && !entries.some(entry => entry.group === original)) {
+      original.name = '001 · Hidden original GLB import'; original.visible = false;
+    }
+  }
+  function build(gltf, cloneModel, variation) {
+    const staged = names.map((name,i) => {
+      const portrait = cloneModel(i === 1 || i === 3 ? variation : gltf.scene);
+      const bounds = new THREE.Box3().setFromObject(portrait,true);
+      const height = bounds.max.y-bounds.min.y;
+      if (!Number.isFinite(height) || height <= 0) throw new Error('Portrait has no usable bounding box');
+      const scale = 2.4/height, midpoint = bounds.getCenter(new THREE.Vector3());
+      const materials = new Set(), copies = new Map();
+      function tint(original) {
+        if (copies.has(original)) return copies.get(original);
+        const mat = original.clone();
+        mat.color?.setHex(colors[i]); mat.transparent = true; mat.opacity = .62;
+        if ('roughness' in mat) mat.roughness = .2;
+        if ('metalness' in mat) mat.metalness = Math.min(mat.metalness,.12);
+        mat.depthWrite = false; mat.needsUpdate = true;
+        materials.add(mat); copies.set(original,mat); return mat;
+      }
+      portrait.traverse(object => {
+        if (!object.isMesh || !object.material) return;
+        if (object.isSkinnedMesh) object.frustumCulled = false;
+        object.material = Array.isArray(object.material) ? object.material.map(tint) : tint(object.material);
+      });
+      if (!materials.size) throw new Error('Portrait has no mesh materials');
+      const fit = new THREE.Group(); fit.name = `${name} · Fitted GLB`;
+      fit.scale.setScalar(scale); fit.position.set(-midpoint.x*scale,-bounds.min.y*scale,-midpoint.z*scale); fit.add(portrait);
+      const group = new THREE.Group(); group.name = name; group.add(fit);
+      group.userData.__m3d_id = `generated-identity-ex001-${i+1}`;
+      const angle = (i-2)*Math.PI/5;
+      const dx = front.x*Math.cos(angle)-front.z*Math.sin(angle);
+      const dz = front.z*Math.cos(angle)+front.x*Math.sin(angle);
+      group.position.set(center.x+3*dx,.8,center.z+3*dz);
+      group.rotation.y = Math.atan2(front.x,front.z) - Math.PI/2;
+      return {group,materials,baseY:.8};
+    });
+    entries.push(...staged);
+    suppressOriginal();
+    for (const {group} of entries) scene.add(group);
+    installed = true; preview.disabled = false; status.hidden = true;
+    editor?.invalidate?.();
+  }
+  async function install() {
+    try {
+      const slot = window.MUSEUM?.wings?.find(w=>w.name==='Identity Chamber')?.slots?.find(s=>s.ex==='001');
+      const plinth = scene.getObjectByName('PLINTH_EX001');
+      if (!slot || !plinth) throw new Error('Exhibit 001 slot or plinth was not found');
+      scene.updateMatrixWorld(true);
+      const plinthBounds = new THREE.Box3().setFromObject(plinth);
+      if (plinthBounds.isEmpty()) plinth.getWorldPosition(center); else plinthBounds.getCenter(center);
+      front.set(-center.x,0,-center.z);
+      if (front.lengthSq() < 1e-8) front.set(0,0,1);
+      front.normalize();
+      visitor.copy(center).addScaledVector(front,9); visitor.y = 1.7;
+      const [{GLTFLoader},{DRACOLoader},{MeshoptDecoder},{clone}] = await Promise.all([
+        import('three/addons/loaders/GLTFLoader.js'),import('three/addons/loaders/DRACOLoader.js'),
+        import('three/addons/libs/meshopt_decoder.module.js'),import('three/addons/utils/SkeletonUtils.js')
+      ]);
+      const draco = new DRACOLoader().setDecoderPath('https://maniengine.com/Engine/js/vendor/three-0.187.0/examples/jsm/libs/draco/gltf/');
+      try {
+        const loader = new GLTFLoader().setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
+        const gltf = await loader.loadAsync(url);
+        const variation = scene.getObjectByName('A_single_freestanding_fine_art_museu') ?? (await loader.loadAsync(new URL('e6d802b4f755e0f12195fe17e5c17018315847e8bf165ad228535d6d602bff2f.glb',url).href)).scene;
+        source = scene;
+        const template = clone(variation);
+        template.position.set(0,0,0);
+        template.visible = true;
+        build(gltf,clone,template);
+      } finally { draco.dispose(); }
+    } catch (error) {
+      status.textContent = '001 portraits unavailable · 001 肖像暂不可用';
+      console.warn('GeneratedIdentityInstallation:',error);
+    }
+  }
+  function tick(now) {
+    const dt = previous ? Math.min(.05,Math.max(0,(now-previous)/1000)) : 0;
+    previous = now;
+    active = controls.enabled !== false;
+    panel.hidden = !active;
+    row.hidden = !active || !nearby();
+    if (!installed) return;
+    // The authored asset injection may finish after this installation.
+    for (const child of scene.children) {
+      if (child.name === 'A_single_freestanding_fine_art_museu') child.visible = false;
+      if (child.name === names[0] && child !== entries[0].group) {
+        child.visible = false; child.name = '001 · Hidden original GLB import';
+      }
+    }
+    if (!active) return;
+    entries.forEach(({group,baseY},i) => {
+      group.position.y = THREE.MathUtils.damp(group.position.y,baseY+(i===selected?.25:0),8,dt);
+      const target = baseY+(i===selected?.25:0);
+      if (Math.abs(group.position.y-target)<.0001) group.position.y = target;
+    });
+  }
+  function resetPose() {
+    selected = -1;
+    entries.forEach(({group,baseY,materials},i) => {
+      group.position.y = baseY;
+      for (const material of materials) material.opacity = .62;
+      buttons[i].setAttribute('aria-pressed','false');
+    });
+  }
+  function pick(event) {
+    if (!controls.enabled || !nearby() || event.button !== 0) return;
+    const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    ndc.set((event.clientX-r.left)/r.width*2-1,1-(event.clientY-r.top)/r.height*2);
+    camera.updateMatrixWorld(); ray.setFromCamera(ndc,camera);
+    const hit = ray.intersectObjects(entries.map(entry=>entry.group),true).find(h=>h.object.isMesh && h.object.visible);
+    if (!hit) return;
+    for (let o=hit.object;o;o=o.parent) {
+      const index = entries.findIndex(entry=>entry.group===o);
+      if (index >= 0) { choose(index); break; }
+    }
+  }
+
+  const preview = button(panel,'Go to 001 · 前往 001',go); preview.disabled = true;
+  status.textContent = 'Loading 001 portraits… · 正在加载 001 肖像…';
+  panel.append(status,row);
+  labels.forEach((label,i)=>{ const b = button(row,label,()=>choose(i)); b.setAttribute('aria-pressed','false'); buttons.push(b); });
+  button(row,'Reset · 重置',()=>choose(-1,false));
+  document.body.append(panel);
+  canvas.addEventListener('click',pick);
+  addEventListener('m3d:edit-mode',event=>{ if (event.detail?.editing) { panel.hidden = true; resetPose(); } });
+  install();
+  return {tick};
+})();
+const GeneratedExhibitInstallation = (() => {
+  const specs = [
+    ['003','Cultural_Mutation_Tree_a_single_magn',4],
+    ['004','One_complete_freestanding_retro-futu',2.8],
+    ['008','The_Algorithmic_Filter_one_freestand',3],
+    ['011','The_Last_Human_Message_one_freestand',2.5],
+    ['005','The_Weather_of_Emotion_one_sculptura',3],
+    ['007','The_Face_That_Keeps_Forming_one_unca',3],
+    ['009','Collective_Memory_one_freestanding_m',3.5],
+    ['010','The_Invisible_Rules_one_complete_arc',1.2],
+    ['012','Fragile_Truth_one_freestanding_conte',3]
+  ];
+  const addedTitles = {'009':'Collective Memory / 集体记忆','010':'The Invisible Rules / 无形的规则','012':'Fragile Truth / 脆弱的真相'};
+  const priorities = ['Career','Love','Learning','Money','Identity','Stability','Freedom'];
+  const installed = new Map(), box = new THREE.Box3(), point = new THREE.Vector3();
+  const panel = document.createElement('section');
+  panel.style.cssText = 'position:fixed;right:12px;bottom:85px;z-index:19;max-width:min(290px,85vw);max-height:60vh;overflow:auto;padding:10px;border-radius:7px;background:#24201dec;color:white;font:13px system-ui';
+  panel.hidden = true;
+  let next = 0, previous = 0, nearest = null, weatherDefaults = null;
+
+  function applyWeather(tint, amount) {
+    const cloud = WingInteriorsV2.cloudMat, rain = WingInteriorsV2.weatherRain;
+    if (!cloud?.color || !Number.isFinite(cloud.opacity) || !Number.isFinite(rain?.speed) || !Number.isFinite(rain?.density)) return;
+    weatherDefaults ??= {cloud,rain,color:cloud.color.clone(),opacity:cloud.opacity,speed:rain.speed,density:rain.density};
+    const base = weatherDefaults;
+    cloud.color.copy(base.color).lerp(tint,amount);
+    cloud.opacity = THREE.MathUtils.lerp(base.opacity,Math.max(base.opacity,.85),amount);
+    rain.speed = base.speed*(1+amount);
+    rain.density = THREE.MathUtils.lerp(base.density,base.density <= 1 ? 1 : base.density*1.5,amount);
+  }
+
+  function install(ex,name,height) {
+    if (!window.MUSEUM?.wings?.some(w=>w.slots?.some(s=>s.ex===ex))) return;
+    const original = scene.getObjectByName(name), plinth = scene.getObjectByName(`PLINTH_EX${ex}`);
+    if (!original || !plinth) return;
+    const model = original.clone(true);
+    // Rebind cloned skins to cloned bones, without touching the tracked import.
+    const sourceNodes = [], clonedNodes = [], counterparts = new Map();
+    original.traverse(o=>sourceNodes.push(o));
+    model.traverse(o=>clonedNodes.push(o));
+    sourceNodes.forEach((o,i)=>counterparts.set(o,clonedNodes[i]));
+    for (const source of sourceNodes) {
+      if (!source.isSkinnedMesh) continue;
+      const bones = source.skeleton.bones.map(b=>counterparts.get(b));
+      if (bones.some(b=>!b)) return;
+      const clone = counterparts.get(source);
+      clone.bind(source.skeleton.clone(),source.bindMatrix);
+      clone.skeleton.bones = bones;
+    }
+    model.name = `${ex} · Display model`;
+    model.visible = true;
+    box.setFromObject(plinth,true);
+    if (box.isEmpty()) return;
+    const top = box.max.y, center = box.getCenter(new THREE.Vector3());
+    // Measure in the import root's local frame, without mutating its authored transform.
+    model.updateWorldMatrix(true,true);
+    const inverse = model.matrixWorld.clone().invert(), local = new THREE.Box3(), part = new THREE.Box3();
+    const materials = [], copies = new Map(), textures = new Set();
+    model.traverse(o=>{
+      if (!o.isMesh || !o.geometry) return;
+      o.geometry.computeBoundingBox();
+      if (!o.geometry.boundingBox?.isEmpty()) local.union(part.copy(o.geometry.boundingBox).applyMatrix4(inverse.clone().multiply(o.matrixWorld)));
+      for (const m of [].concat(o.material ?? [])) if (m.map?.image) textures.add(m.map.image);
+    });
+    const h = local.max.y-local.min.y;
+    if (!Number.isFinite(h) || h<=0) return;
+    const scale = height/h, mid = local.getCenter(new THREE.Vector3());
+    const world = new THREE.Group(), fit = new THREE.Group();
+    world.name = `${ex} · Generated GLB installation`; fit.name = `${ex} · GLB fit`;
+    world.position.set(center.x,top,center.z);
+    const atrium = window.MUSEUM?.centre ?? [0,0,0];
+    const yaw = Math.atan2(atrium[0]-center.x,atrium[2]-center.z) - Math.PI/2;
+    world.rotation.y = yaw;
+    fit.scale.setScalar(scale); fit.position.set(-mid.x*scale,-local.min.y*scale,-mid.z*scale);
+    scene.add(world); world.add(fit); fit.add(model);
+    model.position.set(0,0,0); model.rotation.set(0,0,0); model.scale.set(1,1,1);
+    // Keep the native import in place and leave its tracking lifecycle intact.
+    original.visible = false;
+    const obsoleteName = {'003':'003 · Cultural Mutation Tree','004':'004 · The Choice Machine'}[ex];
+    const obsolete = obsoleteName && scene.getObjectByName(obsoleteName);
+    if (obsolete && !obsolete.getObjectById(original.id) && !obsolete.getObjectById(world.id)) obsolete.visible = false;
+    model.traverse(o=>{
+      if (!o.isMesh) return;
+      if (o.isSkinnedMesh) o.frustumCulled = false;
+      if (addedTitles[ex]) {
+        o.userData.__m3d_walk_collision = false;
+        o.userData.__m3d_walk_floor = false;
+      }
+      if (!o.material || (ex!=='005' && ex!=='007' && !addedTitles[ex])) return;
+      function copy(m) {
+        if (copies.has(m)) return copies.get(m);
+        const clone = m.clone(); copies.set(m,clone);
+        materials.push({clone,color:m.color?.clone(),opacity:m.opacity,transparent:m.transparent,depthWrite:m.depthWrite});
+        return clone;
+      }
+      o.material = Array.isArray(o.material) ? o.material.map(copy) : copy(o.material);
+    });
+    const state = {ex,world,yaw,materials,textures:[...textures],spin:0,turn:0,branch:0,round:0,result:'',mode:0};
+    function seatOnPlinth() {
+      if (model.parent !== fit || world.parent !== scene) return;
+      plinth.updateWorldMatrix(true,true);
+      const plinthBounds = new THREE.Box3().setFromObject(plinth,true);
+      world.updateWorldMatrix(true,true);
+      const finalBounds = new THREE.Box3().setFromObject(world,true);
+      if (plinthBounds.isEmpty() || finalBounds.isEmpty()) return;
+      const plinthTop = plinthBounds.max.y;
+      if (!Number.isFinite(plinthTop) || !Number.isFinite(finalBounds.min.y)) return;
+      world.position.y += plinthTop-finalBounds.min.y;
+      world.updateWorldMatrix(true,true);
+      window.__M3D_EDITOR__?.invalidate?.();
+    }
+    installed.set(ex,state);
+    seatOnPlinth();
+    setTimeout(seatOnPlinth,1000);
+  }
+
+  function report(s,extra={}) {
+    window.EXHIBIT_EVENTS?.dispatchEvent(new CustomEvent('interact',{detail:{ex:s.ex,...extra}}));
+  }
+  function button(s,label,click) {
+    const b=document.createElement('button'); b.type='button'; b.textContent=label; b.style.margin='2px';
+    b.addEventListener('click',()=>{if(controls.enabled && nearest===s) click();}); panel.append(b);
+  }
+  function setExhibitOpacity(s, opacity) {
+    for (const m of s.materials) {
+      m.clone.opacity = opacity ?? m.opacity;
+      m.clone.transparent = opacity == null ? m.transparent : opacity < 1;
+      m.clone.depthWrite = opacity == null || opacity === 1 ? m.depthWrite : false;
+      m.clone.needsUpdate = true;
+    }
+    window.__M3D_EDITOR__?.invalidate?.();
+  }
+  function showAddedExhibit(s) {
+    const title = document.createElement('strong');
+    title.textContent = addedTitles[s.ex];
+    const result = document.createElement('div');
+    result.setAttribute('role','status');
+    panel.append(title,result);
+    if (s.ex === '009') {
+      const fragments = [
+        ['Ticket / 车票','A ticket remembers the route, but not why we left. / 车票记得路线，却不记得离开的原因。'],
+        ['Photograph / 照片','The photograph preserves a face; its name is missing. / 照片留下了面孔，名字却遗失了。'],
+        ['Key / 钥匙','The key outlasted the door it opened. / 钥匙还在，它打开的门却不在了。'],
+        ['Letter / 信件','A letter recalls an ordinary morning. / 一封信记下了一个平凡的早晨。'],
+        ['Recipe / 食谱','Two families remember the same recipe differently. / 两个家庭对同一道食谱有不同的记忆。'],
+        ['Recording / 录音','A familiar voice returns through the static. / 熟悉的声音从杂音中传来。']
+      ];
+      s.fragments ??= new Set();
+      const detail = document.createElement('div');
+      const update = () => {
+        const n = s.fragments.size;
+        result.textContent = `${n}/6` + (n === 6 ? ' · Reconstructed memory / 重建的记忆' : ' · Fragments collected / 已收集碎片');
+      };
+      update();
+      fragments.forEach(([label,description],i) => button(s,label,()=>{
+        const first = !s.fragments.has(i);
+        s.fragments.add(i);
+        const n = s.fragments.size;
+        detail.textContent = description;
+        for (const m of s.materials) {
+          if (m.color) m.clone.color.copy(m.color).lerp(new THREE.Color(0xffc275),n*.09);
+          if (m.clone.emissive) {
+            m.clone.emissive.setHex(0x9e571e);
+            m.clone.emissiveIntensity = n*.07;
+          }
+        }
+        update();
+        window.__M3D_EDITOR__?.invalidate?.();
+        report(s,{action:'reveal-fragment',fragment:i+1,collected:n,first});
+      }));
+      panel.append(detail);
+    } else if (s.ex === '010') {
+      const update = () => { result.textContent = s.rulesVisible ? 'Rules revealed: trace the routes through the tabletop model. / 规则已显现：观察桌面模型的路径。' : 'Rules hidden / 规则已隐藏'; };
+      update();
+      button(s,'Reveal Rules / 显示规则',()=>{
+        s.rulesVisible = !s.rulesVisible;
+        setExhibitOpacity(s,s.rulesVisible ? .3 : 1);
+        update();
+        report(s,{action:'toggle-rules',revealed:s.rulesVisible});
+      });
+      button(s,'Reset / 重置',()=>{
+        s.rulesVisible = false;
+        setExhibitOpacity(s,1);
+        update();
+        report(s,{action:'reset-rules',revealed:false});
+      });
+    } else {
+      const layers = [
+        'Headline: a summary can leave out qualifications. / 标题：摘要可能省略限定条件。',
+        'Image: a crop can hide what happened outside the frame. / 图像：裁剪可能隐藏画面之外发生的事。',
+        'Quotation: read the surrounding sentences for context. / 引语：阅读前后文，了解语境。',
+        'Data: check who collected it, how, and what was omitted. / 数据：核查收集者、方法以及遗漏内容。',
+        'Original source: look for the earliest record and compare independent accounts. / 原始来源：寻找最早的记录，并对照独立记述。'
+      ];
+      s.peeled ??= 0;
+      const update = () => { result.textContent = `${s.peeled}/5 · ${layers[s.peeled-1] ?? 'Peel a layer to examine the evidence. / 剥开一层，检视证据。'}`; };
+      update();
+      button(s,'Peel next layer / 剥开下一层',()=>{
+        if (s.peeled < layers.length) {
+          s.peeled++;
+          setExhibitOpacity(s,1-s.peeled*.15);
+          update();
+        }
+        report(s,{action:'peel-layer',layer:s.peeled});
+      });
+      button(s,'Reset / 重置',()=>{
+        s.peeled = 0;
+        setExhibitOpacity(s,null);
+        update();
+        report(s,{action:'reset-layers',layer:0});
+      });
+    }
+  }
+  function show(s) {
+    if (s?.ex === '008' || s?.ex === '011') s = null;
+    panel.replaceChildren(); panel.hidden=!s;
+    if (!s) return;
+    if (addedTitles[s.ex]) { showAddedExhibit(s); return; }
+    const title=document.createElement('strong');
+    title.textContent={
+      '003':'Cultural Mutation Tree / 文化变异之树',
+      '004':'The Machine / 机器',
+      '005':'The Weather of Emotion / 情绪的天气',
+      '007':'The Face That Keeps Forming / 不断成形的脸'
+    }[s.ex];
+    panel.append(title,document.createElement('br'));
+    const result=document.createElement('div'); result.setAttribute('role','status');
+    if (s.ex==='003') {
+      const gallery=document.createElement('div');
+      function leaves(branch) {
+        gallery.replaceChildren();
+        const caption=document.createElement('div');
+        caption.textContent=s.textures.length ? `Branch ${branch+1} · Enlarged crops of the loaded tree texture (not separate leaf photos)` : 'No readable leaf texture is available on this GLB.';
+        gallery.append(caption);
+        for(let i=0;i<6 && s.textures.length;i++) {
+          const image=s.textures[(branch+i)%s.textures.length], w=image.width, h=image.height;
+          if (!w || !h) continue;
+          const crop=document.createElement('canvas'); crop.width=128; crop.height=96; crop.style.cssText='width:120px;max-width:45%;margin:2px';
+          const col=(branch+i)%3, row=Math.floor((branch+i)%6/3);
+          try { crop.getContext('2d').drawImage(image,col*w/3,row*h/2,w/3,h/2,0,0,128,96); gallery.append(crop); } catch { caption.textContent='This GLB texture cannot be displayed as an image.'; }
+        }
+      }
+      for(let i=0;i<5;i++) button(s,`Branch ${i+1}`,()=>{s.branch=i;s.turn=(i-2)*.12;leaves(i);report(s,{branch:i+1});});
+      panel.append(gallery); if(s.result) leaves(s.branch);
+    } else if (s.ex==='004') {
+      function spin() {
+        if(s.spin>0)return;
+        s.round++; s.spin=1.8; s.result='Considering your options…'; result.textContent=s.result;
+        report(s,{action:s.round===1?'ask':'re-spin'});
+      }
+      button(s,'Ask Machine',spin); button(s,'Re-spin',spin);
+      panel.append(document.createTextNode(priorities.join(' · ')));
+      s.output=result;
+    } else if (s.ex==='005') {
+      const emotion=document.createElement('input'), intensity=document.createElement('input');
+      emotion.placeholder='Name an emotion'; emotion.setAttribute('aria-label','Emotion'); emotion.value=s.emotion ?? '';
+      intensity.type='range'; intensity.min='0'; intensity.max='100'; intensity.value=s.intensity ?? '50'; intensity.setAttribute('aria-label','Emotion intensity');
+      panel.append(emotion,intensity);
+      button(s,'Apply emotion',()=>{
+        const label=emotion.value.trim(); if(!label)return;
+        s.emotion=label; s.intensity=intensity.value;
+        let hash=0; for(const c of label.toLowerCase()) hash=(Math.imul(hash,31)+c.codePointAt(0))>>>0;
+        const tint=new THREE.Color().setHSL((hash%360)/360,.65,.6);
+        const amount = Number(s.intensity)/100;
+        for(const {clone,color} of s.materials) if(color) clone.color.copy(color).lerp(tint,amount);
+        applyWeather(tint,amount);
+        s.result=`${label} · ${s.intensity}%`; result.textContent=s.result;
+        report(s,{emotion:label,intensity:+s.intensity});
+      });
+    } else {
+      ['Observe','Approach','Respond'].forEach((label,i)=>button(s,label,()=>{
+        s.mode=i; s.turn=(i-1)*.28;
+        for (const {clone,opacity,transparent,depthWrite} of s.materials) {
+          clone.opacity=opacity*[1,.82,.62][i]; clone.transparent=i>0||transparent; clone.depthWrite=i===0&&depthWrite; clone.needsUpdate=true;
+        }
+        s.result=label; result.textContent=label; report(s,{response:label});
+      }));
+    }
+    result.textContent=s.result; panel.append(result);
+  }
+
+  function tick(now) {
+    const dt=previous?Math.min(.05,Math.max(0,(now-previous)/1000)):0; previous=now;
+    if(installed.size<specs.length && now>=next){ next=now+500; for(const spec of specs) if(!installed.has(spec[0])) install(...spec); }
+    let candidate=null, distance=12;
+    if (controls.enabled) for(const s of installed.values()) {
+      s.world.getWorldPosition(point);
+      const d=Math.hypot(camera.position.x-point.x,camera.position.z-point.z);
+      if(d<distance){candidate=s;distance=d;}
+      if(s.spin>0){
+        s.spin=Math.max(0,s.spin-dt);
+        s.turn=.24*Math.sin(s.spin*14)*s.spin/1.8;
+        if(!s.spin){s.result=`The machine suggests: ${priorities[(s.round*3-1)%priorities.length]}`;if(s.output)s.output.textContent=s.result;}
+      }
+      s.world.rotation.y=THREE.MathUtils.damp(s.world.rotation.y,s.yaw+s.turn,3,dt);
+    }
+    if(candidate!==nearest){nearest=candidate;show(candidate);}
+  }
+
+  document.body.append(panel);
+  addEventListener('m3d:edit-mode',e=>{if(!e.detail?.editing)return;
+    if(weatherDefaults){
+      const {cloud,rain,color,opacity,speed,density}=weatherDefaults;
+      cloud.color.copy(color); cloud.opacity=opacity; rain.speed=speed; rain.density=density;
+      weatherDefaults=null;
+    }
+    nearest=null;show(null);for(const s of installed.values()){
+    s.spin=0;s.turn=0;s.world.rotation.y=s.yaw;s.result='';s.mode=0;s.emotion='';s.intensity='50';
+    for(const {clone,color,opacity,transparent,depthWrite} of s.materials){if(color)clone.color.copy(color);clone.opacity=opacity;clone.transparent=transparent;clone.depthWrite=depthWrite;clone.needsUpdate=true;}
+  }});
+  return {tick};
+})();
+const GuidedMuseumTour = (() => {
+  const stepMs = 18000, halfFadeMs = 750;
+  const center = new THREE.Vector3(), inward = new THREE.Vector3();
+  const pose = new THREE.Vector3(), facing = new THREE.Quaternion();
+  const designPosition = new THREE.Vector3(), designFacing = new THREE.Quaternion();
+  const hallFacing = camera.quaternion.clone();
+  const titles = [
+    'Entrance Hall · 入口大厅', 'Multiple Selves · 多重自我',
+    'Collective Memory · 集体记忆', 'Cultural Mutation Tree · 文化变异之树',
+    'The Choice Machine · 选择机器', 'The Weather of Emotion · 情绪天气',
+    'Identity · 身份', 'The Face That Keeps Forming · 不断成形的脸',
+    'The Algorithmic Filter · 算法过滤器', 'The Invisible Rules · 无形规则',
+    'Fragile Truth · 脆弱的真相', 'The Last Human Message · 最后的人类讯息',
+    'Floating Evidence · 漂浮的证据'
+  ];
+  let step = -1, requested = -1, fadeStart = null, elapsed = 0, previous = null;
+  let paused = false, hold = false, editing = window.__MANI_EDITOR_PREVIEW__ === true;
+  const veil = document.createElement('div');
+  veil.setAttribute('aria-hidden', 'true');
+  veil.style.cssText = 'position:fixed;inset:0;background:#141210;opacity:0;pointer-events:none;z-index:60';
+  const panel = document.createElement('section');
+  panel.setAttribute('aria-label', 'Guided museum tour · 博物馆导览');
+  panel.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 32px);padding:10px 14px;background:#24201def;color:white;border-radius:8px;text-align:center;font:14px system-ui;z-index:61';
+  const caption = document.createElement('div');
+  caption.setAttribute('aria-live', 'polite');
+  const hint = document.createElement('div');
+  hint.style.margin = '4px 0 8px';
+
+  function button(label, action) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label; b.style.margin = '2px';
+    b.addEventListener('click', action); panel.append(b); return b;
+  }
+  function syncWalk() {
+    eu.setFromQuaternion(camera.quaternion, 'YXZ');
+    yaw = eu.y; pitch = THREE.MathUtils.clamp(eu.x, -1.2, 1.2);
+    velY = 0; onFloor = false; look = false; last = performance.now();
+    for (const code in keys) keys[code] = false;
+  }
+  function updatePanel() {
+    const active = step >= 0 || requested >= 0;
+    panel.hidden = editing || !controls.enabled;
+    start.hidden = active; toggle.hidden = next.hidden = stopButton.hidden = !active;
+    caption.hidden = hint.hidden = !active;
+    toggle.textContent = paused ? 'Resume · 继续' : 'Pause · 暂停';
+    const n = step < 0 ? requested : step;
+    caption.textContent = active ? `${String(n).padStart(2, '0')}/12  ${titles[n]}` : '';
+    hint.textContent = paused ? 'Walk closer and use the exhibit controls. · 走近展品并使用互动控件。' : 'Pause to explore and interact. · 暂停导览即可自由探索与互动。';
+  }
+  function stop() {
+    step = requested = -1; fadeStart = previous = null; elapsed = 0;
+    paused = hold = false; veil.style.opacity = '0';
+    syncWalk(); updatePanel();
+  }
+  function queue(n) {
+    if (n > 12) { stop(); return; }
+    if (requested >= 0) return;
+    requested = n; fadeStart = null; elapsed = 0; previous = null;
+    paused = false; pose.copy(camera.position); facing.copy(camera.quaternion); hold = true;
+    syncWalk(); updatePanel();
+  }
+  function frame(n) {
+    if (n === 0) {
+      camera.position.set(0, 1.7, 0); camera.quaternion.copy(hallFacing); return true;
+    }
+    const ex = String(n).padStart(3, '0');
+    const plinth = scene.getObjectByName(`PLINTH_EX${ex}`);
+    if (!plinth) return false;
+    plinth.getWorldPosition(center);
+    if (center.x * center.x + center.z * center.z < 1e-8) {
+      for (const wing of window.MUSEUM?.wings ?? []) {
+        const slot = (wing.slots ?? []).find(s => Number(s.ex ?? s.id) === n);
+        const p = slot?.pos;
+        if (Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[2])) {
+          center.x = p[0]; center.z = p[2]; break;
+        }
+        if (Number.isFinite(p?.x) && Number.isFinite(p?.z)) {
+          center.x = p.x; center.z = p.z; break;
+        }
+      }
+    }
+    inward.set(-center.x, 0, -center.z);
+    if (inward.lengthSq() < 1e-8) inward.set(0, 0, -1);
+    inward.normalize().multiplyScalar(9);
+    camera.position.set(center.x + inward.x, n === 1 ? 1.7 : 2.2, center.z + inward.z);
+    camera.lookAt(center.x, 2, center.z); return true;
+  }
+  function tick(now) {
+    const visible = !editing && controls.enabled;
+    if (panel.hidden === visible) updatePanel();
+    if (!visible || paused || (step < 0 && requested < 0)) return;
+    if (hold) {
+      camera.position.copy(pose); camera.quaternion.copy(facing); syncWalk();
+    }
+    if (requested >= 0) {
+      if (fadeStart === null) fadeStart = now;
+      if (now - fadeStart >= halfFadeMs && veil.style.opacity !== '1') {
+        veil.style.opacity = '1'; return;
+      }
+      const t = now - fadeStart;
+      if (t < halfFadeMs) { veil.style.opacity = String(t / halfFadeMs); return; }
+      const n = requested;
+      if (!frame(n)) {
+        stop(); caption.hidden = false;
+        caption.textContent = `Plinth ${String(n).padStart(3, '0')} unavailable · 展台暂不可用`;
+        return;
+      }
+      pose.copy(camera.position); facing.copy(camera.quaternion); syncWalk();
+      step = n; requested = -1; fadeStart = now; previous = now; elapsed = 0;
+      updatePanel(); return;
+    }
+    if (fadeStart !== null) {
+      const opacity = Math.max(0, 1 - (now - fadeStart) / halfFadeMs);
+      veil.style.opacity = String(opacity);
+      if (opacity === 0) fadeStart = null;
+    }
+    if (previous !== null) elapsed += Math.max(0, now - previous);
+    previous = now;
+    if (elapsed >= stepMs && requested < 0) queue(step + 1);
+  }
+
+  panel.append(caption, hint);
+  const start = button('Start guided tour / 开始导览', () => {
+    if (!editing && controls.enabled) queue(0);
+  });
+  const toggle = button('Pause · 暂停', () => {
+    if (requested >= 0 && step < 0) { stop(); return; }
+    if (step < 0) return;
+    if (paused) {
+      const remainingElapsed = elapsed;
+      queue(step); elapsed = remainingElapsed;
+    } else {
+      requested = -1; fadeStart = previous = null;
+      paused = true; hold = false; veil.style.opacity = '0';
+      syncWalk(); updatePanel();
+    }
+  });
+  const next = button('Next · 下一站', () => queue(step + 1));
+  const stopButton = button('Stop · 停止', stop);
+  designPosition.copy(camera.position); designFacing.copy(camera.quaternion);
+  document.body.append(veil, panel);
+  addEventListener('m3d:edit-mode', event => {
+    const wasEditing = editing;
+    editing = !!event.detail?.editing;
+    if (!editing && wasEditing) {
+      designPosition.copy(camera.position); designFacing.copy(camera.quaternion);
+    } else if (editing && !wasEditing && (step >= 0 || requested >= 0)) {
+      camera.position.copy(designPosition); camera.quaternion.copy(designFacing); stop();
+    }
+    updatePanel();
+  });
+  updatePanel();
+  return {tick};
+})();
+window.__M3D_EDITOR__.ready = true;
+window.dispatchEvent(new Event('m3d:scene-ready'));
+renderer.setAnimationLoop((now) => { IdentityFixV2.disableSpriteRaycasts(); controls.update(); MuseumV2.tick(now, controls.enabled); WingInteriorsV2.tick(now, controls.enabled); WingInteriorsV2b.tick(now, controls.enabled); IdentitySculpturesV2.tick(now, controls.enabled); IdentityFixV2.tick(now, controls.enabled); PendingExhibitsA.tick(now, controls.enabled); PendingExhibitsB.tick(now, controls.enabled); GeneratedIdentityInstallation.tick(now); GeneratedExhibitInstallation.tick(now); GuidedMuseumTour.tick(now); renderer.render(scene, camera); });
+</script>
+</body>
+</html>
+<!--__M3D_SINGLEFILE__-->
