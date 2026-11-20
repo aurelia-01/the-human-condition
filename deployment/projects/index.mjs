@@ -3,7 +3,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, ch => ({
 })[ch]);
 
 const covers = new Map([
-  ['human-condition', '/projects/images/human-condition.jpg'],
+  ['human-condition', '/projects/images/human-condition.jpg?v=archive-door'],
   ['golden-apple', '/projects/images/golden-apple.jpg']
 ]);
 

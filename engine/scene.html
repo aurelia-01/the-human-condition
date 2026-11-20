@@ -365,14 +365,18 @@
 })(/*O*/[{"name":"One_complete_freestanding_retro-futu","path":"1181","sg":"Group","b":[0,0,0],"p":[0,0.4898,0],"r":[0,0,0],"s":[1,1,1],"v":true},{"name":"ground","path":"3","sg":"Mesh:130","b":[0,-0.08,0],"p":[0,-0.08,0],"r":[-1.5708,0,0],"s":[1,1,1],"v":false},{"name":"The_Algorithmic_Filter_one_freestand","path":"1181","sg":"Group","b":[0,0,0],"p":[0,0.4897,0],"r":[0,0,0],"s":[1,1,1],"v":true}]/*O*/, null)</script>
 <meta charset="utf-8">
 <style>html,body{margin:0;height:100%;overflow:hidden}canvas{display:block}</style>
+<style>html:has(#archive-arrival),html:has(#archive-arrival) body{background-color:#f6ecd2}</style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"}}</script>
 </head>
 <body>
 <style>
-#archive-arrival{position:absolute;inset:0;z-index:100000;display:grid;place-items:center;box-sizing:border-box;padding:clamp(1rem,5vw,3rem);overflow:auto;background:#0b0d12;color:#e9e4d8;text-align:center;font-family:Georgia,'Times New Roman',serif;transition:opacity .4s ease}
+#archive-arrival{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;box-sizing:border-box;padding:20px;overflow:auto;background:#f6ecd2;color:#2a2418;text-align:center;font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;line-height:normal;transition:opacity .4s ease}
 #archive-arrival.is-leaving{opacity:0;pointer-events:none}
-#archive-arrival .arrival-label{color:#c5a46a;font-size:.78rem;letter-spacing:.25em}
-#archive-arrival .arrival-subtitle{max-width:34ch;margin:.8em auto 0;font-size:clamp(1.35rem,4.5vw,2.6rem);line-height:1.4}
+#archive-arrival .arrival-label{color:#6d6350;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+#archive-arrival .arrival-subtitle{margin:14px 0 0;font-size:clamp(18px,2.4vw,26px);font-style:italic;line-height:normal}
+#archive-arrival[lang="zh"],#archive-arrival[lang="zh"] .arrival-label{font-family:"Long Cang","Ma Shan Zheng","Kaiti SC","STKaiti",serif}
+#archive-arrival[lang="zh"] .arrival-label{font-size:16px;letter-spacing:.2em;text-transform:none}
+#archive-arrival[lang="zh"] .arrival-subtitle{font-size:30px;font-style:normal}
 #archive-arrival .arrival-fallback{margin-top:1rem;font:.875rem/1.5 system-ui,sans-serif}
 #archive-arrival a,#archive-arrival button{color:inherit;font:inherit}
 #archive-arrival button{margin-inline-end:.75em;padding:.2em .6em;background:transparent;border:1px solid currentColor;border-radius:.25em;cursor:pointer}
@@ -381,7 +385,7 @@
 <section id="archive-arrival" aria-label="ARCHIVE Nº 2046">
   <div>
     <div role="status" aria-live="polite">
-      <div class="arrival-label">ARCHIVE Nº 2046</div>
+      <div class="arrival-label">Entering</div>
       <p class="arrival-subtitle">The door opens. Welcome to the archive of 2046.</p>
       <p class="arrival-loading" hidden></p>
     </div>
@@ -395,6 +399,7 @@
   const entry = new URLSearchParams(location.search).get('entryLang');
   const zh = entry === 'zh' || (entry !== 'en' && /^zh(?:-|$)/i.test(navigator.language || ''));
   card.lang = zh ? 'zh' : 'en';
+  if (zh) { card.querySelector('.arrival-label').textContent = '正在进入'; const fontLink = document.createElement('link'); fontLink.rel = 'stylesheet'; fontLink.href = 'https://fonts.googleapis.com/css2?family=Long+Cang&family=Ma+Shan+Zheng&display=swap'; document.head.appendChild(fontLink); }
   if (zh) card.querySelector('.arrival-subtitle').textContent = '门开了。欢迎来到 2046 年的档案馆。';
   const loading = card.querySelector('.arrival-loading');
   const fallback = card.querySelector('.arrival-fallback');
@@ -637,6 +642,12 @@ const controls = { enabled: true, update() {
 addEventListener('blur', () => { for (const code in keys) keys[code] = false; look = false; });
 addEventListener('m3d:edit-mode', (e) => { controls.enabled = !e.detail?.editing; for (const code in keys) keys[code] = false; look = false; last = performance.now(); });
 /* __M3D_WASD_END__ */
+
+camera.name ||= "Camera";
+camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
+{ const existing = scene.children.find(o => o.isCamera && o.userData?.__m3d_viewcam); if(existing) existing.userData.__m3d_cam_nav = 'wasd'; else if(camera.parent !== scene) scene.add(camera); }
+
+
 
 camera.name ||= "Camera";
 camera.userData = { ...camera.userData, ...{}, __m3d_viewcam: 1, __m3d_cam_nav: 'wasd' };
